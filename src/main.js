@@ -9,6 +9,10 @@ import stemFrag from './shaders/stem.frag.glsl';
 import flowerVert from './shaders/flower.vert.glsl';
 import flowerFrag from './shaders/flower.frag.glsl';
 
+import { resetToSeed, seededRandom } from './lib/prng.js';
+import * as network from './lib/network.js';
+import { PlayerManager } from './lib/players.js';
+
 // ─── Config ──────────────────────────────────────────────
 const FIELD_SIZE = 120;
 const GRASS_COUNT = 80000;
@@ -103,6 +107,8 @@ function createGrassBlade() {
   return base;
 }
 
+let grassMat = null;
+
 function createGrass() {
   const base = createGrassBlade();
   const geo = new THREE.InstancedBufferGeometry();
@@ -114,13 +120,13 @@ function createGrass() {
   const phases = new Float32Array(GRASS_COUNT);
 
   for (let i = 0; i < GRASS_COUNT; i++) {
-    const x = (Math.random() - 0.5) * FIELD_SIZE;
-    const z = (Math.random() - 0.5) * FIELD_SIZE;
+    const x = (seededRandom() - 0.5) * FIELD_SIZE;
+    const z = (seededRandom() - 0.5) * FIELD_SIZE;
     offsets[i * 3] = x;
     offsets[i * 3 + 1] = getHeightAt(x, z);
     offsets[i * 3 + 2] = z;
-    scales[i] = 0.6 + Math.random() * 0.8;
-    phases[i] = Math.random() * Math.PI * 2;
+    scales[i] = 0.6 + seededRandom() * 0.8;
+    phases[i] = seededRandom() * Math.PI * 2;
   }
 
   geo.setAttribute('offset', new THREE.InstancedBufferAttribute(offsets, 3));
@@ -142,7 +148,7 @@ function createGrass() {
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
   scene.add(mesh);
-  return mat;
+  grassMat = mat;
 }
 
 // ─── Flower geometry builder ─────────────────────────────
@@ -207,6 +213,7 @@ function buildFlowerGeometry(p) {
 // ─── Flower + stem instance management ───────────────────
 let stemMesh = null, stemMat = null;
 let flowerMesh = null, flowerMat = null;
+let _flowerSeed = 0;
 
 function rebuildFlowers() {
   // Clean up old meshes
@@ -220,6 +227,9 @@ function rebuildFlowers() {
     flowerMesh.geometry.dispose();
     flowerMat.dispose();
   }
+
+  // Reset PRNG for deterministic flower placement
+  resetToSeed(_flowerSeed);
 
   const count = Math.round(params.flowerCount);
   const colors = [
@@ -239,10 +249,10 @@ function rebuildFlowers() {
   const petalColors = new Float32Array(count * 3);
 
   for (let i = 0; i < count; i++) {
-    const x = (Math.random() - 0.5) * FIELD_SIZE;
-    const z = (Math.random() - 0.5) * FIELD_SIZE;
+    const x = (seededRandom() - 0.5) * FIELD_SIZE;
+    const z = (seededRandom() - 0.5) * FIELD_SIZE;
     const gy = getHeightAt(x, z);
-    const sh = params.stemHeightMin + Math.random() * (params.stemHeightMax - params.stemHeightMin);
+    const sh = params.stemHeightMin + seededRandom() * (params.stemHeightMax - params.stemHeightMin);
 
     offsets[i * 3] = x;
     offsets[i * 3 + 1] = gy;
@@ -253,11 +263,11 @@ function rebuildFlowers() {
     headOffsets[i * 3 + 2] = z;
 
     stemHeights[i] = sh;
-    flowerScales[i] = params.scaleMin + Math.random() * (params.scaleMax - params.scaleMin);
-    phases[i] = Math.random() * Math.PI * 2;
-    rotYs[i] = Math.random() * Math.PI * 2;
+    flowerScales[i] = params.scaleMin + seededRandom() * (params.scaleMax - params.scaleMin);
+    phases[i] = seededRandom() * Math.PI * 2;
+    rotYs[i] = seededRandom() * Math.PI * 2;
 
-    const c = colors[Math.floor(Math.random() * colors.length)];
+    const c = colors[Math.floor(seededRandom() * colors.length)];
     petalColors[i * 3] = c.r;
     petalColors[i * 3 + 1] = c.g;
     petalColors[i * 3 + 2] = c.b;
@@ -334,7 +344,10 @@ controls.addEventListener('lock', () => overlay.classList.add('hidden'));
 controls.addEventListener('unlock', () => overlay.classList.remove('hidden'));
 
 const keys = {};
-document.addEventListener('keydown', (e) => { keys[e.code] = true; });
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Tab') { e.preventDefault(); controls.unlock(); return; }
+  keys[e.code] = true;
+});
 document.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
 function updateMovement(dt) {
@@ -352,6 +365,9 @@ function updateMovement(dt) {
   }
   const p = camera.position;
   p.y = getHeightAt(p.x, p.z) + 1.7;
+
+  // Send position to other players
+  network.sendPosition(p.x, p.y, p.z, camera.rotation.y);
 }
 
 window.addEventListener('resize', () => {
@@ -361,14 +377,19 @@ window.addEventListener('resize', () => {
 });
 
 // ─── GUI ─────────────────────────────────────────────────
+let gui = null;
+
 function setupGUI() {
-  const gui = new GUI({ title: 'Flower Field' });
+  gui = new GUI({ title: 'Flower Field' });
 
   // Rebuild helper — debounced so dragging sliders doesn't thrash
   let rebuildTimer = null;
   function scheduleRebuild() {
     clearTimeout(rebuildTimer);
-    rebuildTimer = setTimeout(rebuildFlowers, 80);
+    rebuildTimer = setTimeout(() => {
+      rebuildFlowers();
+      network.sendParams(params);
+    }, 80);
   }
 
   // Instant uniform update (no rebuild)
@@ -376,10 +397,12 @@ function setupGUI() {
     if (grassMat) grassMat.uniforms.uWindStrength.value = params.windStrength;
     if (stemMat) stemMat.uniforms.uWindStrength.value = params.windStrength;
     if (flowerMat) flowerMat.uniforms.uWindStrength.value = params.windStrength;
+    network.sendParams(params);
   }
 
   function updateCenterColor() {
     if (flowerMat) flowerMat.uniforms.uCenterColor.value.set(params.centerColor);
+    network.sendParams(params);
   }
 
   // ── Preset ──
@@ -424,12 +447,64 @@ function setupGUI() {
   colors.open();
 }
 
-// ─── Init ────────────────────────────────────────────────
+// ─── Player manager ──────────────────────────────────────
+const playerManager = new PlayerManager(scene);
+
+// ─── Network: apply remote param changes ─────────────────
+function applyRemoteParams(remoteParams) {
+  Object.assign(params, remoteParams);
+  rebuildFlowers();
+  // Update wind uniform immediately
+  if (grassMat) grassMat.uniforms.uWindStrength.value = params.windStrength;
+  if (stemMat) stemMat.uniforms.uWindStrength.value = params.windStrength;
+  if (flowerMat) flowerMat.uniforms.uWindStrength.value = params.windStrength;
+  if (flowerMat) flowerMat.uniforms.uCenterColor.value.set(params.centerColor);
+  // Refresh GUI sliders
+  if (gui) gui.controllersRecursive().forEach((c) => c.updateDisplay());
+}
+
+// ─── Init (deferred until server sends seed) ─────────────
 createTerrain();
-const grassMat = createGrass();
-rebuildFlowers();
 setupLighting();
-setupGUI();
+
+network.connect({
+  onInit({ seed, params: serverParams, players }) {
+    _flowerSeed = seed;
+
+    // Apply server params if any client has set them before us
+    if (serverParams) Object.assign(params, serverParams);
+
+    // Build scene with seeded PRNG
+    resetToSeed(seed + 1); // grass uses seed+1
+    createGrass();
+    rebuildFlowers(); // uses _flowerSeed internally
+
+    setupGUI();
+
+    // Add existing players
+    for (const id of Object.keys(players)) {
+      const pid = Number(id);
+      playerManager.add(pid);
+      const p = players[id];
+      playerManager.updatePosition(pid, p.x, p.y, p.z, p.yaw);
+    }
+
+    // Start render loop
+    animate();
+  },
+  onPlayerJoin(id) {
+    playerManager.add(id);
+  },
+  onPlayerLeave(id) {
+    playerManager.remove(id);
+  },
+  onPlayerMove(id, x, y, z, yaw) {
+    playerManager.updatePosition(id, x, y, z, yaw);
+  },
+  onParamsUpdate(remoteParams) {
+    applyRemoteParams(remoteParams);
+  },
+});
 
 const clock = new THREE.Clock();
 
@@ -438,12 +513,11 @@ function animate() {
   const dt = clock.getDelta();
   const t = clock.getElapsedTime();
 
-  grassMat.uniforms.uTime.value = t;
+  if (grassMat) grassMat.uniforms.uTime.value = t;
   if (stemMat) stemMat.uniforms.uTime.value = t;
   if (flowerMat) flowerMat.uniforms.uTime.value = t;
 
   updateMovement(dt);
+  playerManager.tick(dt);
   renderer.render(scene, camera);
 }
-
-animate();
