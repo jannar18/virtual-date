@@ -23,10 +23,52 @@
       letter-spacing: 0.05em;
     }
     #overlay.hidden { display: none; }
+
+    /* Chat */
+    #chat-input {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 360px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      font-family: sans-serif;
+      font-size: 1rem;
+      outline: none;
+      backdrop-filter: blur(6px);
+      z-index: 20;
+      display: none;
+    }
+    #chat-input::placeholder { color: rgba(255,255,255,0.5); }
+
+    #chat-toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 18px;
+      border-radius: 14px;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      font-family: sans-serif;
+      font-size: 0.9rem;
+      backdrop-filter: blur(6px);
+      z-index: 20;
+      opacity: 0;
+      transition: opacity 0.4s;
+      pointer-events: none;
+    }
+    #chat-toast.visible { opacity: 1; }
   </style>
 </head>
 <body>
   <div id="overlay">Click to enter the meadow</div>
+  <input id="chat-input" type="text" maxlength="100" placeholder="Say something..." autocomplete="off" />
+  <div id="chat-toast"></div>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

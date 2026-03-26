@@ -69,6 +69,14 @@ export function createWSHandler(httpServer) {
         currentParams = msg.params;
         broadcast({ type: 'params-update', params: msg.params }, ws);
       }
+
+      if (msg.type === 'chat') {
+        const info = clients.get(ws);
+        if (!info) return;
+        const text = String(msg.text || '').slice(0, 100);
+        if (!text) return;
+        broadcast({ type: 'chat', id: info.id, text });
+      }
     });
 
     ws.on('close', () => {

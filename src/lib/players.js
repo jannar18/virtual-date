@@ -83,6 +83,41 @@ function animateCloakHem(mesh, time) {
   pos.needsUpdate = true;
 }
 
+// Create a wispy billboard sprite — bare dark text, no background
+function createChatBubble(text) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  const fontSize = 48;
+  const padding = 8;
+  const font = `300 ${fontSize}px Georgia, serif`;
+  ctx.font = font;
+  const metrics = ctx.measureText(text);
+  const textW = metrics.width;
+
+  canvas.width = textW + padding * 2;
+  canvas.height = fontSize + padding * 2;
+
+  // No background — just the text
+  ctx.font = font;
+  ctx.fillStyle = 'rgba(30, 20, 15, 0.7)';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+
+  const scale = canvas.width / 200;
+  sprite.scale.set(scale, (canvas.height / canvas.width) * scale, 1);
+  sprite.position.y = 3.6;
+
+  return sprite;
+}
+
 export class PlayerManager {
   constructor(scene) {
     this.scene = scene;
@@ -218,6 +253,23 @@ export class PlayerManager {
       if (child.material) child.material.dispose();
     });
     this.players.delete(id);
+  }
+
+  showChat(id, text) {
+    const p = this.players.get(id);
+    if (!p) return;
+
+    // Remove previous bubble
+    if (p.chatSprite) {
+      p.group.remove(p.chatSprite);
+      p.chatSprite.material.map.dispose();
+      p.chatSprite.material.dispose();
+      p.chatSprite = null;
+    }
+
+    const sprite = createChatBubble(text);
+    p.group.add(sprite);
+    p.chatSprite = sprite;
   }
 
   updatePosition(id, x, y, z, yaw) {

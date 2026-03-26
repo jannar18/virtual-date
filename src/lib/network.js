@@ -6,13 +6,15 @@ let _onPlayerJoin = null;
 let _onPlayerLeave = null;
 let _onPlayerMove = null;
 let _onParamsUpdate = null;
+let _onChat = null;
 
-export function connect({ onInit, onPlayerJoin, onPlayerLeave, onPlayerMove, onParamsUpdate }) {
+export function connect({ onInit, onPlayerJoin, onPlayerLeave, onPlayerMove, onParamsUpdate, onChat }) {
   _onInit = onInit;
   _onPlayerJoin = onPlayerJoin;
   _onPlayerLeave = onPlayerLeave;
   _onPlayerMove = onPlayerMove;
   _onParamsUpdate = onParamsUpdate;
+  _onChat = onChat;
 
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${proto}//${location.host}/ws`);
@@ -36,6 +38,9 @@ export function connect({ onInit, onPlayerJoin, onPlayerLeave, onPlayerMove, onP
       case 'params-update':
         _onParamsUpdate?.(msg.params);
         break;
+      case 'chat':
+        _onChat?.(msg.id, msg.text);
+        break;
     }
   });
 }
@@ -49,6 +54,16 @@ export function sendPosition(x, y, z, yaw) {
   if (ws?.readyState === 1) {
     ws.send(JSON.stringify({ type: 'player-move', x, y, z, yaw }));
   }
+}
+
+export function sendChat(text) {
+  if (ws?.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'chat', text }));
+  }
+}
+
+export function getMyId() {
+  return myId;
 }
 
 // Debounced params sender

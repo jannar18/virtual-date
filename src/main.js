@@ -341,11 +341,63 @@ const overlay = document.getElementById('overlay');
 
 overlay.addEventListener('click', () => controls.lock());
 controls.addEventListener('lock', () => overlay.classList.add('hidden'));
-controls.addEventListener('unlock', () => overlay.classList.remove('hidden'));
+controls.addEventListener('unlock', () => {
+  // Don't show overlay if we unlocked to type in chat
+  if (!chatOpen) overlay.classList.remove('hidden');
+});
+
+// ─── Chat UI ──────────────────────────────────────────────
+const chatInput = document.getElementById('chat-input');
+const chatToast = document.getElementById('chat-toast');
+let chatOpen = false;
+let toastTimer = null;
+
+function openChat() {
+  if (chatOpen) return;
+  chatOpen = true;
+  chatInput.style.display = 'block';
+  chatInput.focus();
+}
+
+function closeChat() {
+  if (!chatOpen) return;
+  chatOpen = false;
+  chatInput.style.display = 'none';
+  chatInput.value = '';
+  chatInput.blur();
+  // Re-lock pointer so player is back in the game
+  controls.lock();
+}
+
+function submitChat() {
+  const text = chatInput.value.trim().slice(0, 100);
+  if (!text) { closeChat(); return; }
+  network.sendChat(text);
+  closeChat();
+}
+
+function showToast(text) {
+  chatToast.textContent = text;
+  chatToast.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => chatToast.classList.remove('visible'), 3000);
+}
+
+chatInput.addEventListener('keydown', (e) => {
+  e.stopPropagation(); // prevent WASD movement while typing
+  if (e.key === 'Enter') submitChat();
+  if (e.key === 'Escape') closeChat();
+});
 
 const keys = {};
 document.addEventListener('keydown', (e) => {
+  if (chatOpen) return; // don't process game keys while typing
   if (e.code === 'Tab') { e.preventDefault(); controls.unlock(); return; }
+  if (e.code === 'KeyT' && controls.isLocked) {
+    e.preventDefault();
+    openChat();
+    return;
+  }
   keys[e.code] = true;
 });
 document.addEventListener('keyup', (e) => { keys[e.code] = false; });
@@ -503,6 +555,14 @@ network.connect({
   },
   onParamsUpdate(remoteParams) {
     applyRemoteParams(remoteParams);
+  },
+  onChat(id, text) {
+    if (id === network.getMyId()) {
+      // Own message — show toast (we don't have our own avatar)
+      showToast(text);
+    } else {
+      playerManager.showChat(id, text);
+    }
   },
 });
 
