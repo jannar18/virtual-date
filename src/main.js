@@ -15,7 +15,6 @@ import { PlayerManager } from './lib/players.js';
 
 // ─── Config ──────────────────────────────────────────────
 const FIELD_SIZE = 120;
-const GRASS_COUNT = 80000;
 const FOG_COLOR = new THREE.Color(0xd4c4a8);
 const FOG_NEAR = 30;
 const FOG_FAR = 90;
@@ -30,12 +29,19 @@ const PRESET_KEYS = [
   'bundleStemThickness','bundleStemCurve','bundleStemHeightMult',
   'bundlePetalCount','bundlePetalLength','bundlePetalWidth',
   'bundleBellWidth','bundleBellFlare','bundlePetalTilt','bundleCenterSize',
-  'scaleMin','scaleMax','flowerCount','bundleRatio',
+  'scaleMin','scaleMax','flowerCount','singlePct','bundlePct','clusterPct',
   'stemHeightMin','stemHeightMax',
   'primaryColor','secondaryColor','centerColor',
   'bundleColor','bundleCenterColor',
   'singleStemBaseColor','singleStemTipColor',
   'bundleStemBaseColor','bundleStemTipColor',
+  'clusterStems','clusterBudsPerStem','clusterBudSpread',
+  'clusterStemThickness','clusterStemCurve','clusterStemHeightMult',
+  'clusterPetalCount','clusterPetalLength','clusterPetalWidth',
+  'clusterBellWidth','clusterBellFlare','clusterPetalTilt','clusterCenterSize',
+  'clusterColor','clusterCenterColor',
+  'clusterStemBaseColor','clusterStemTipColor',
+  'grassCount',
   'grassBaseColor','grassTipColor','grassHeight',
   'patchBaseColor','patchTipColor','patchHeight','groundColor',
   'windStrength',
@@ -51,14 +57,51 @@ const PRESETS = {
     bundlePetalCount: 4, bundlePetalLength: 0.1, bundlePetalWidth: 1.1,
     bundleBellWidth: 0.2, bundleBellFlare: 0.05, bundlePetalTilt: 1.0, bundleCenterSize: 0.02,
     scaleMin: 0.1, scaleMax: 0.5, stemHeightMin: 0.1, stemHeightMax: 0.6,
-    flowerCount: 10000, bundleRatio: 0.45, windStrength: 0.83,
+    flowerCount: 10000, singlePct: 55, bundlePct: 45, clusterPct: 0, windStrength: 0.83,
     primaryColor: '#ffebfc', secondaryColor: '#ffda8a', centerColor: '#fff3a0',
     bundleColor: '#ffaf94', bundleCenterColor: '#ffe4a0',
     singleStemBaseColor: '#99bf80', singleStemTipColor: '#99bf80',
     bundleStemBaseColor: '#a6c7ae', bundleStemTipColor: '#a6c7ae',
+    clusterColor: '#b49adb', clusterCenterColor: '#9a84c0',
+    clusterStemBaseColor: '#99bf80', clusterStemTipColor: '#99bf80',
+    grassCount: 80000,
     grassBaseColor: '#d8d97d', grassTipColor: '#f7ffb8', grassHeight: 0.7,
     patchBaseColor: '#9ed963', patchTipColor: '#e6e882', patchHeight: 0.7,
     groundColor: '#feffbd',
+  },
+  "Howl's Secret Garden": {
+    // Singles: tiny white 5-petal wildflowers, dense clusters, very small
+    petalCount: 5, petalLength: 0.15, petalWidth: 0.7, centerSize: 0.04,
+    singleStems: 4, singleStemSpread: 0.06, singleStemThickness: 0.25, singleStemCurve: 0.0,
+    singlePetalTilt: 0.0, singleBellWidth: 0.08, singleBellFlare: 0.0,
+    // Bundles: pink rounded single-petal buds, dense on stems
+    bundleStems: 4, bundleFlowersPerStem: 4, bundleStemSpread: 0.12,
+    bundleStemThickness: 0.3, bundleStemCurve: 0.2, bundleStemHeightMult: 1.8,
+    bundlePetalCount: 1, bundlePetalLength: 0.12, bundlePetalWidth: 1.2,
+    bundleBellWidth: 0.14, bundleBellFlare: 0.02, bundlePetalTilt: 0.85, bundleCenterSize: 0.03,
+    // Clusters: lavender hydrangea-like clusters, tight bud rings at stem tops
+    clusterStems: 1, clusterBudsPerStem: 6, clusterBudSpread: 0.04,
+    clusterStemThickness: 0.4, clusterStemCurve: 0.1, clusterStemHeightMult: 1.4,
+    clusterPetalCount: 5, clusterPetalLength: 0.08, clusterPetalWidth: 0.55,
+    clusterBellWidth: 0.06, clusterBellFlare: 0.01, clusterPetalTilt: 0.92, clusterCenterSize: 0.02,
+    // Scale & field
+    scaleMin: 0.06, scaleMax: 0.56, stemHeightMin: 0.08, stemHeightMax: 0.4,
+    flowerCount: 210000, singlePct: 90, bundlePct: 8, clusterPct: 20, windStrength: 0.19,
+    // Colors — white wildflowers
+    primaryColor: '#ffffff', secondaryColor: '#ffe5f0', centerColor: '#ffee70',
+    // Colors — soft pink buds
+    bundleColor: '#ffc7d6', bundleCenterColor: '#f58fa8',
+    // Colors — lavender clusters
+    clusterColor: '#b49adb', clusterCenterColor: '#9a84c0',
+    // Stems — green, uniform
+    singleStemBaseColor: '#5a9a48', singleStemTipColor: '#5a9a48',
+    bundleStemBaseColor: '#4a8a3d', bundleStemTipColor: '#6a9a55',
+    clusterStemBaseColor: '#4a8a3d', clusterStemTipColor: '#6a9a55',
+    // Grass — ultra dense, very short, less wind sway
+    grassCount: 600000,
+    grassBaseColor: '#77b964', grassTipColor: '#add978', grassHeight: 0.1,
+    patchBaseColor: '#4a9a3a', patchTipColor: '#6ab050', patchHeight: 0.2,
+    groundColor: '#5a8b4b',
   },
   Daisy:       { petalCount: 8,  petalLength: 0.5,  petalWidth: 0.55, centerSize: 0.12, singlePetalTilt: 0.0,  singleBellWidth: 0.25, singleBellFlare: 0.0 },
   Poppy:       { petalCount: 4,  petalLength: 0.55, petalWidth: 0.85, centerSize: 0.08, singlePetalTilt: 0.15, singleBellWidth: 0.28, singleBellFlare: 0.04 },
@@ -100,11 +143,28 @@ const params = {
   bundlePetalTilt: 1.0,
   bundleCenterSize: 0.02,
 
+  // Cluster flower shape
+  clusterStems: 1,
+  clusterBudsPerStem: 6,
+  clusterBudSpread: 0.04,
+  clusterStemThickness: 0.4,
+  clusterStemCurve: 0.1,
+  clusterStemHeightMult: 1.4,
+  clusterPetalCount: 5,
+  clusterPetalLength: 0.08,
+  clusterPetalWidth: 0.55,
+  clusterBellWidth: 0.06,
+  clusterBellFlare: 0.01,
+  clusterPetalTilt: 0.92,
+  clusterCenterSize: 0.02,
+
   // Scale & field
   scaleMin: 0.1,
   scaleMax: 0.5,
   flowerCount: 10000,
-  bundleRatio: 0.45,
+  singlePct: 55,
+  bundlePct: 45,
+  clusterPct: 0,
   stemHeightMin: 0.1,
   stemHeightMax: 0.6,
 
@@ -117,13 +177,20 @@ const params = {
   bundleColor: '#ffaf94',
   bundleCenterColor: '#ffe4a0',
 
+  // Colors — clusters (lavender)
+  clusterColor: '#b49adb',
+  clusterCenterColor: '#9a84c0',
+
   // Stems
   singleStemBaseColor: '#99bf80',
   singleStemTipColor: '#99bf80',
   bundleStemBaseColor: '#a6c7ae',
   bundleStemTipColor: '#a6c7ae',
+  clusterStemBaseColor: '#99bf80',
+  clusterStemTipColor: '#99bf80',
 
   // Grass
+  grassCount: 80000,
   grassBaseColor: '#d8d97d',
   grassTipColor: '#f7ffb8',
   grassHeight: 0.7,
@@ -176,8 +243,8 @@ function createTerrain() {
 // ─── Grass ───────────────────────────────────────────────
 function createGrassBlade() {
   const verts = new Float32Array([
-    -0.04, 0, 0, 0.04, 0, 0,
-    -0.02, 0.5, 0, 0.02, 0.5, 0,
+    -0.02, 0, 0, 0.02, 0, 0,
+    -0.01, 0.5, 0, 0.01, 0.5, 0,
     0.0, 1.0, 0,
   ]);
   const base = new THREE.BufferGeometry();
@@ -186,21 +253,25 @@ function createGrassBlade() {
   return base;
 }
 
-let grassMat = null;
-let patchGrassMat = null;
+let grassMesh = null, grassMat = null;
+let patchGrassMesh = null, patchGrassMat = null;
 let terrainMat = null;
 
 function createGrass() {
+  cleanupMeshAndMat(grassMesh, grassMat);
+  grassMesh = grassMat = null;
+
+  const count = Math.round(params.grassCount);
   const base = createGrassBlade();
   const geo = new THREE.InstancedBufferGeometry();
   geo.index = base.index;
   geo.setAttribute('position', base.getAttribute('position'));
 
-  const offsets = new Float32Array(GRASS_COUNT * 3);
-  const scales = new Float32Array(GRASS_COUNT);
-  const phases = new Float32Array(GRASS_COUNT);
+  const offsets = new Float32Array(count * 3);
+  const scales = new Float32Array(count);
+  const phases = new Float32Array(count);
 
-  for (let i = 0; i < GRASS_COUNT; i++) {
+  for (let i = 0; i < count; i++) {
     const x = (seededRandom() - 0.5) * FIELD_SIZE;
     const z = (seededRandom() - 0.5) * FIELD_SIZE;
     offsets[i * 3] = x;
@@ -217,7 +288,7 @@ function createGrass() {
   const mat = new THREE.ShaderMaterial({
     vertexShader: grassVert, fragmentShader: grassFrag,
     uniforms: {
-      uTime: { value: 0 }, uWindStrength: { value: 0.6 },
+      uTime: { value: 0 }, uWindStrength: { value: params.windStrength },
       uHeightScale: { value: params.grassHeight },
       uBaseColor: { value: new THREE.Color(params.grassBaseColor) },
       uTipColor: { value: new THREE.Color(params.grassTipColor) },
@@ -230,18 +301,18 @@ function createGrass() {
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
   scene.add(mesh);
+  grassMesh = mesh;
   grassMat = mat;
 }
 
 // ─── Patch Grass (weed clumps) ──────────────────────────
-const PATCH_GRASS_COUNT = 15000;
 const PATCH_CELL_SIZE = 4;
 
 function createPatchBlade() {
-  // Wider, shorter blade for weeds
+  // Narrower, shorter blade for weeds
   const verts = new Float32Array([
-    -0.07, 0, 0,  0.07, 0, 0,
-    -0.04, 0.35, 0,  0.04, 0.35, 0,
+    -0.035, 0, 0,  0.035, 0, 0,
+    -0.02, 0.35, 0,  0.02, 0.35, 0,
     0.0, 0.6, 0,
   ]);
   const base = new THREE.BufferGeometry();
@@ -258,20 +329,24 @@ function isPatchCell(cx, cz, seed) {
 }
 
 function createPatchGrass() {
+  cleanupMeshAndMat(patchGrassMesh, patchGrassMat);
+  patchGrassMesh = patchGrassMat = null;
+
+  const patchCount = Math.round(params.grassCount * 0.2);
   const base = createPatchBlade();
   const geo = new THREE.InstancedBufferGeometry();
   geo.index = base.index;
   geo.setAttribute('position', base.getAttribute('position'));
 
-  const offsets = new Float32Array(PATCH_GRASS_COUNT * 3);
-  const scales = new Float32Array(PATCH_GRASS_COUNT);
-  const phases = new Float32Array(PATCH_GRASS_COUNT);
+  const offsets = new Float32Array(patchCount * 3);
+  const scales = new Float32Array(patchCount);
+  const phases = new Float32Array(patchCount);
 
   let placed = 0;
   let attempts = 0;
-  const maxAttempts = PATCH_GRASS_COUNT * 8;
+  const maxAttempts = patchCount * 8;
 
-  while (placed < PATCH_GRASS_COUNT && attempts < maxAttempts) {
+  while (placed < patchCount && attempts < maxAttempts) {
     attempts++;
     const x = (seededRandom() - 0.5) * FIELD_SIZE;
     const z = (seededRandom() - 0.5) * FIELD_SIZE;
@@ -301,7 +376,7 @@ function createPatchGrass() {
   const mat = new THREE.ShaderMaterial({
     vertexShader: grassVert, fragmentShader: grassFrag,
     uniforms: {
-      uTime: { value: 0 }, uWindStrength: { value: 0.6 },
+      uTime: { value: 0 }, uWindStrength: { value: params.windStrength },
       uHeightScale: { value: params.patchHeight },
       uBaseColor: { value: new THREE.Color(params.patchBaseColor) },
       uTipColor: { value: new THREE.Color(params.patchTipColor) },
@@ -314,7 +389,14 @@ function createPatchGrass() {
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
   scene.add(mesh);
+  patchGrassMesh = mesh;
   patchGrassMat = mat;
+}
+
+function rebuildAllGrass() {
+  resetToSeed(_flowerSeed + 1);
+  createGrass();
+  createPatchGrass();
 }
 
 // ─── Shared flower geometry builder ──────────────────────
@@ -428,11 +510,25 @@ function buildBellFlowerGeometry(p) {
   });
 }
 
+function buildClusterBudGeometry(p) {
+  return buildFlowerHead({
+    petalCount: p.clusterPetalCount,
+    petalLength: p.clusterPetalLength,
+    petalWidth: p.clusterPetalWidth,
+    bellWidth: p.clusterBellWidth,
+    bellFlare: p.clusterBellFlare,
+    petalTilt: p.clusterPetalTilt,
+    centerSize: p.clusterCenterSize,
+  });
+}
+
 // ─── Flower + stem instance management ───────────────────
 let singleStemMesh = null, singleStemMat = null;
 let singleFlowerMesh = null, singleFlowerMat = null;
 let bundleStemMesh = null, bundleStemMat = null;
 let bundleFlowerMesh = null, bundleFlowerMat = null;
+let clusterStemMesh = null, clusterStemMat = null;
+let clusterFlowerMesh = null, clusterFlowerMat = null;
 let _flowerSeed = 0;
 
 function cleanupMeshAndMat(mesh, mat) {
@@ -503,30 +599,50 @@ function rebuildFlowers() {
   cleanupMeshAndMat(singleFlowerMesh, singleFlowerMat);
   cleanupMeshAndMat(bundleStemMesh, bundleStemMat);
   cleanupMeshAndMat(bundleFlowerMesh, bundleFlowerMat);
+  cleanupMeshAndMat(clusterStemMesh, clusterStemMat);
+  cleanupMeshAndMat(clusterFlowerMesh, clusterFlowerMat);
   singleStemMesh = singleStemMat = null;
   singleFlowerMesh = singleFlowerMat = null;
   bundleStemMesh = bundleStemMat = null;
   bundleFlowerMesh = bundleFlowerMat = null;
+  clusterStemMesh = clusterStemMat = null;
+  clusterFlowerMesh = clusterFlowerMat = null;
 
   resetToSeed(_flowerSeed);
 
   const totalCount = Math.round(params.flowerCount);
-  const bundleCount = Math.round(totalCount * params.bundleRatio);
-  const singleCount = totalCount - bundleCount;
+  const pctSum = (params.singlePct + params.bundlePct + params.clusterPct) || 1;
+  const clusterCount = Math.round(totalCount * params.clusterPct / pctSum);
+  const bundleCount = Math.round(totalCount * params.bundlePct / pctSum);
+  const singleCount = Math.max(0, totalCount - clusterCount - bundleCount);
 
   const singleColors = [
     new THREE.Color(params.primaryColor),
     new THREE.Color(params.secondaryColor),
   ];
   const bundleCol = new THREE.Color(params.bundleColor);
+  const clusterCol = new THREE.Color(params.clusterColor);
 
-  // ── Phase 1: consume PRNG for all base positions ──
+  // ── Phase 1: rejection-sampled patch placement ──
   const singlePositions = [];
   const bundlePositions = [];
+  const clusterPositions = [];
 
-  for (let i = 0; i < totalCount; i++) {
+  let placed = 0;
+  let attempts = 0;
+  const maxAttempts = totalCount * 4;
+
+  while (placed < totalCount && attempts < maxAttempts) {
+    attempts++;
     const x = (seededRandom() - 0.5) * FIELD_SIZE;
     const z = (seededRandom() - 0.5) * FIELD_SIZE;
+
+    // Patch-based acceptance (different seed from grass patches)
+    const cx = Math.floor(x / PATCH_CELL_SIZE);
+    const cz = Math.floor(z / PATCH_CELL_SIZE);
+    const inPatch = isPatchCell(cx, cz, _flowerSeed + 42);
+    if (!inPatch && seededRandom() > 0.17) continue;
+
     const gy = getHeightAt(x, z);
     const sh = params.stemHeightMin + seededRandom() * (params.stemHeightMax - params.stemHeightMin);
     const scale = params.scaleMin + seededRandom() * (params.scaleMax - params.scaleMin);
@@ -534,12 +650,15 @@ function rebuildFlowers() {
     const rotY = seededRandom() * Math.PI * 2;
     const colorRand = seededRandom();
 
-    if (i < bundleCount) {
+    if (placed < clusterCount) {
+      clusterPositions.push({ x, z, gy, sh, scale, phase, rotY });
+    } else if (placed < clusterCount + bundleCount) {
       bundlePositions.push({ x, z, gy, sh, scale, phase, rotY });
     } else {
       const c = singleColors[Math.floor(colorRand * singleColors.length)];
       singlePositions.push({ x, z, gy, sh, scale, phase, rotY, c });
     }
+    placed++;
   }
 
   // ── Phase 2: expand single positions into multi-stem clusters ──
@@ -726,6 +845,104 @@ function rebuildFlowers() {
     bundleFlowerMesh = flower.mesh;
     bundleFlowerMat = flower.mat;
   }
+
+  // ── Phase 4: expand cluster positions into tight bud rings at stem tops ──
+  if (clusterPositions.length > 0) {
+    const maxStems = params.clusterStems;
+    const minStems = Math.max(1, maxStems);
+    const budsPerStem = params.clusterBudsPerStem;
+    const maxTotalStems = clusterPositions.length * maxStems;
+    const maxTotalBuds = maxTotalStems * budsPerStem;
+
+    const cStOffsets = new Float32Array(maxTotalStems * 3);
+    const cStHeights = new Float32Array(maxTotalStems);
+    const cStPhases = new Float32Array(maxTotalStems);
+    const cStThick = new Float32Array(maxTotalStems);
+    const cStCurve = new Float32Array(maxTotalStems);
+
+    const cFlOffsets = new Float32Array(maxTotalBuds * 3);
+    const cFlScales = new Float32Array(maxTotalBuds);
+    const cFlPhases = new Float32Array(maxTotalBuds);
+    const cFlRotYs = new Float32Array(maxTotalBuds);
+    const cFlPetCol = new Float32Array(maxTotalBuds * 3);
+    const cFlSway = new Float32Array(maxTotalBuds);
+
+    let csi = 0, cfi = 0;
+
+    for (let i = 0; i < clusterPositions.length; i++) {
+      const cp = clusterPositions[i];
+      const baseSh = cp.sh * params.clusterStemHeightMult;
+
+      for (let s = 0; s < maxStems; s++) {
+        let sx = cp.x, sz = cp.z;
+        let stemPhase = cp.phase;
+
+        if (maxStems > 1) {
+          const stemAngle = (s / maxStems) * Math.PI * 2 + seededRandom() * 0.5;
+          const stemDist = 0.05 * (0.5 + seededRandom() * 0.5);
+          sx += Math.cos(stemAngle) * stemDist;
+          sz += Math.sin(stemAngle) * stemDist;
+          stemPhase += seededRandom() * 0.5;
+        }
+
+        const sgy = getHeightAt(sx, sz);
+        const sh = baseSh * (0.85 + seededRandom() * 0.3);
+        const stemCurveVal = params.clusterStemCurve * (0.7 + seededRandom() * 0.6);
+        const stemThick = params.clusterStemThickness * (0.8 + seededRandom() * 0.4);
+
+        cStOffsets[csi * 3] = sx;
+        cStOffsets[csi * 3 + 1] = sgy;
+        cStOffsets[csi * 3 + 2] = sz;
+        cStHeights[csi] = sh;
+        cStPhases[csi] = stemPhase;
+        cStThick[csi] = stemThick;
+        cStCurve[csi] = stemCurveVal;
+        csi++;
+
+        // Buds packed tightly at stem top in a radial ring
+        for (let b = 0; b < budsPerStem; b++) {
+          const relH = 0.88 + (b / Math.max(1, budsPerStem - 1)) * 0.12;
+          const budAngle = (b / budsPerStem) * Math.PI * 2 + seededRandom() * 0.4;
+          const budDist = params.clusterBudSpread * (0.6 + seededRandom() * 0.4);
+
+          const curveH = relH * relH;
+          const curveX = Math.cos(stemPhase) * stemCurveVal * curveH;
+          const curveZ = Math.sin(stemPhase) * stemCurveVal * curveH;
+
+          const budX = sx + curveX + Math.cos(budAngle) * budDist;
+          const budZ = sz + curveZ + Math.sin(budAngle) * budDist;
+          const budScale = cp.scale * (0.4 + seededRandom() * 0.3);
+
+          cFlOffsets[cfi * 3] = budX;
+          cFlOffsets[cfi * 3 + 1] = sgy + relH * sh;
+          cFlOffsets[cfi * 3 + 2] = budZ;
+          cFlScales[cfi] = budScale;
+          cFlPhases[cfi] = stemPhase;
+          cFlRotYs[cfi] = cp.rotY + seededRandom() * Math.PI;
+          cFlPetCol[cfi * 3] = clusterCol.r;
+          cFlPetCol[cfi * 3 + 1] = clusterCol.g;
+          cFlPetCol[cfi * 3 + 2] = clusterCol.b;
+          cFlSway[cfi] = curveH;
+          cfi++;
+        }
+      }
+    }
+
+    const cGeo = buildClusterBudGeometry(params);
+    const stem = makeStemGroup(
+      cStOffsets.subarray(0, csi * 3), cStHeights.subarray(0, csi),
+      cStPhases.subarray(0, csi), cStThick.subarray(0, csi), cStCurve.subarray(0, csi),
+      new THREE.Color(params.clusterStemBaseColor), new THREE.Color(params.clusterStemTipColor));
+    clusterStemMesh = stem.mesh;
+    clusterStemMat = stem.mat;
+    const flower = makeFlowerGroup(cGeo,
+      cFlOffsets.subarray(0, cfi * 3), cFlScales.subarray(0, cfi),
+      cFlPhases.subarray(0, cfi), cFlRotYs.subarray(0, cfi),
+      cFlPetCol.subarray(0, cfi * 3), new THREE.Color(params.clusterCenterColor),
+      cFlSway.subarray(0, cfi));
+    clusterFlowerMesh = flower.mesh;
+    clusterFlowerMat = flower.mat;
+  }
 }
 
 // ─── Lighting ────────────────────────────────────────────
@@ -835,6 +1052,8 @@ function setTimeOnAll(t) {
   if (singleFlowerMat) singleFlowerMat.uniforms.uTime.value = t;
   if (bundleStemMat) bundleStemMat.uniforms.uTime.value = t;
   if (bundleFlowerMat) bundleFlowerMat.uniforms.uTime.value = t;
+  if (clusterStemMat) clusterStemMat.uniforms.uTime.value = t;
+  if (clusterFlowerMat) clusterFlowerMat.uniforms.uTime.value = t;
 }
 
 function setWindOnAll(v) {
@@ -844,6 +1063,8 @@ function setWindOnAll(v) {
   if (singleFlowerMat) singleFlowerMat.uniforms.uWindStrength.value = v;
   if (bundleStemMat) bundleStemMat.uniforms.uWindStrength.value = v;
   if (bundleFlowerMat) bundleFlowerMat.uniforms.uWindStrength.value = v;
+  if (clusterStemMat) clusterStemMat.uniforms.uWindStrength.value = v;
+  if (clusterFlowerMat) clusterFlowerMat.uniforms.uWindStrength.value = v;
 }
 
 // ─── GUI ─────────────────────────────────────────────────
@@ -877,22 +1098,32 @@ function setupGUI() {
     network.sendParams(params);
   }
 
+  function updateClusterCenterColor() {
+    if (clusterFlowerMat) clusterFlowerMat.uniforms.uCenterColor.value.set(params.clusterCenterColor);
+    network.sendParams(params);
+  }
+
   // ── Preset ──
   presetCtrl = gui.add(params, 'preset', Object.keys(PRESETS)).name('Preset');
   presetCtrl.onChange((name) => {
     const p = PRESETS[name];
     if (p) {
+      const oldGrassCount = params.grassCount;
       Object.assign(params, p);
       gui.controllersRecursive().forEach((c) => c.updateDisplay());
-      if (grassMat) {
-        grassMat.uniforms.uBaseColor.value.set(params.grassBaseColor);
-        grassMat.uniforms.uTipColor.value.set(params.grassTipColor);
-        grassMat.uniforms.uHeightScale.value = params.grassHeight;
-      }
-      if (patchGrassMat) {
-        patchGrassMat.uniforms.uBaseColor.value.set(params.patchBaseColor);
-        patchGrassMat.uniforms.uTipColor.value.set(params.patchTipColor);
-        patchGrassMat.uniforms.uHeightScale.value = params.patchHeight;
+      if (params.grassCount !== oldGrassCount) {
+        rebuildAllGrass();
+      } else {
+        if (grassMat) {
+          grassMat.uniforms.uBaseColor.value.set(params.grassBaseColor);
+          grassMat.uniforms.uTipColor.value.set(params.grassTipColor);
+          grassMat.uniforms.uHeightScale.value = params.grassHeight;
+        }
+        if (patchGrassMat) {
+          patchGrassMat.uniforms.uBaseColor.value.set(params.patchBaseColor);
+          patchGrassMat.uniforms.uTipColor.value.set(params.patchTipColor);
+          patchGrassMat.uniforms.uHeightScale.value = params.patchHeight;
+        }
       }
       if (terrainMat) terrainMat.color.set(params.groundColor);
       scheduleRebuild();
@@ -921,7 +1152,7 @@ function setupGUI() {
   };
 
   presetActions.delete = function () {
-    const builtIn = ['Desert Spring','Daisy','Poppy','Cosmos','Buttercup','Wild Rose','Sunflower'];
+    const builtIn = ['Desert Spring',"Howl's Secret Garden",'Daisy','Poppy','Cosmos','Buttercup','Wild Rose','Sunflower'];
     const custom = Object.keys(PRESETS).filter(n => !builtIn.includes(n));
     if (custom.length === 0) { alert('No saved presets to delete.'); return; }
     const name = prompt('Delete preset:\n' + custom.join(', '));
@@ -938,54 +1169,79 @@ function setupGUI() {
   gui.add(presetActions, 'save').name('💾 Save Preset');
   gui.add(presetActions, 'delete').name('🗑 Delete Preset');
 
-  // ── Single shape ──
-  const shape = gui.addFolder('Single Shape');
-  shape.add(params, 'petalCount', 3, 12, 1).name('Petals').onChange(scheduleRebuild);
-  shape.add(params, 'petalLength', 0.2, 1.0, 0.01).name('Petal Length').onChange(scheduleRebuild);
-  shape.add(params, 'petalWidth', 0.2, 1.2, 0.01).name('Roundness').onChange(scheduleRebuild);
-  shape.add(params, 'centerSize', 0.04, 0.3, 0.01).name('Center Size').onChange(scheduleRebuild);
-  shape.add(params, 'singleStemThickness', 0.2, 1.2, 0.01).name('Stem Thick').onChange(scheduleRebuild);
-  shape.add(params, 'singleStemCurve', 0.0, 0.4, 0.01).name('Stem Curve').onChange(scheduleRebuild);
-  shape.add(params, 'singlePetalTilt', 0.0, 1.0, 0.01).name('Petal Tilt').onChange(scheduleRebuild);
-  shape.add(params, 'singleBellWidth', 0.05, 0.4, 0.005).name('Bell Width').onChange(scheduleRebuild);
-  shape.add(params, 'singleBellFlare', 0.0, 0.3, 0.005).name('Bell Flare').onChange(scheduleRebuild);
-  shape.add(params, 'singleStems', 1, 6, 1).name('Stems').onChange(scheduleRebuild);
-  shape.add(params, 'singleStemSpread', 0.02, 0.2, 0.005).name('Stem Spread').onChange(scheduleRebuild);
+  // ── Singles ──
+  // Consistent order: Count → Petals → Petal Length → Roundness → Center Size →
+  //   Petal Tilt → Bell Width → Bell Flare → Stems → Stem Spread → Stem Thick → Stem Curve →
+  //   Colors (petal, center, stem base, stem tip)
+  const single = gui.addFolder('Singles');
+  single.add(params, 'singlePct', 0, 100, 1).name('%').onChange(scheduleRebuild);
+  single.add(params, 'petalCount', 3, 12, 1).name('Petals').onChange(scheduleRebuild);
+  single.add(params, 'petalLength', 0.2, 1.0, 0.01).name('Petal Length').onChange(scheduleRebuild);
+  single.add(params, 'petalWidth', 0.2, 1.2, 0.01).name('Roundness').onChange(scheduleRebuild);
+  single.add(params, 'centerSize', 0.04, 0.3, 0.01).name('Center Size').onChange(scheduleRebuild);
+  single.add(params, 'singlePetalTilt', 0.0, 1.0, 0.01).name('Petal Tilt').onChange(scheduleRebuild);
+  single.add(params, 'singleBellWidth', 0.05, 0.4, 0.005).name('Bell Width').onChange(scheduleRebuild);
+  single.add(params, 'singleBellFlare', 0.0, 0.3, 0.005).name('Bell Flare').onChange(scheduleRebuild);
+  single.add(params, 'singleStems', 1, 6, 1).name('Stems').onChange(scheduleRebuild);
+  single.add(params, 'singleStemSpread', 0.02, 0.2, 0.005).name('Stem Spread').onChange(scheduleRebuild);
+  single.add(params, 'singleStemThickness', 0.2, 1.2, 0.01).name('Stem Thick').onChange(scheduleRebuild);
+  single.add(params, 'singleStemCurve', 0.0, 0.4, 0.01).name('Stem Curve').onChange(scheduleRebuild);
+  single.addColor(params, 'primaryColor').name('Color 1').onChange(scheduleRebuild);
+  single.addColor(params, 'secondaryColor').name('Color 2').onChange(scheduleRebuild);
+  single.addColor(params, 'centerColor').name('Center').onChange(updateSingleCenterColor);
+  single.addColor(params, 'singleStemBaseColor').name('Stem Base').onChange(scheduleRebuild);
+  single.addColor(params, 'singleStemTipColor').name('Stem Tip').onChange(scheduleRebuild);
 
-  // ── Bundle shape ──
-  const bundle = gui.addFolder('Bundle Shape');
+  // ── Bundles ──
+  const bundle = gui.addFolder('Bundles');
+  bundle.add(params, 'bundlePct', 0, 100, 1).name('%').onChange(scheduleRebuild);
+  bundle.add(params, 'bundlePetalCount', 1, 12, 1).name('Petals').onChange(scheduleRebuild);
+  bundle.add(params, 'bundlePetalLength', 0.1, 0.6, 0.01).name('Petal Length').onChange(scheduleRebuild);
+  bundle.add(params, 'bundlePetalWidth', 0.3, 1.2, 0.01).name('Roundness').onChange(scheduleRebuild);
+  bundle.add(params, 'bundleCenterSize', 0.02, 0.15, 0.01).name('Center Size').onChange(scheduleRebuild);
+  bundle.add(params, 'bundlePetalTilt', 0.0, 1.0, 0.01).name('Petal Tilt').onChange(scheduleRebuild);
+  bundle.add(params, 'bundleBellWidth', 0.05, 0.4, 0.005).name('Bell Width').onChange(scheduleRebuild);
+  bundle.add(params, 'bundleBellFlare', 0.0, 0.3, 0.005).name('Bell Flare').onChange(scheduleRebuild);
   bundle.add(params, 'bundleStems', 2, 6, 1).name('Stems').onChange(scheduleRebuild);
   bundle.add(params, 'bundleFlowersPerStem', 2, 4, 1).name('Flowers/Stem').onChange(scheduleRebuild);
   bundle.add(params, 'bundleStemSpread', 0.02, 0.2, 0.005).name('Stem Spread').onChange(scheduleRebuild);
   bundle.add(params, 'bundleStemThickness', 0.3, 1.2, 0.01).name('Stem Thick').onChange(scheduleRebuild);
   bundle.add(params, 'bundleStemCurve', 0.0, 0.4, 0.01).name('Stem Curve').onChange(scheduleRebuild);
   bundle.add(params, 'bundleStemHeightMult', 0.8, 2.0, 0.05).name('Height Mult').onChange(scheduleRebuild);
-  bundle.add(params, 'bundlePetalCount', 4, 12, 1).name('Petals').onChange(scheduleRebuild);
-  bundle.add(params, 'bundlePetalLength', 0.1, 0.6, 0.01).name('Petal Length').onChange(scheduleRebuild);
-  bundle.add(params, 'bundleBellWidth', 0.05, 0.4, 0.005).name('Bell Width').onChange(scheduleRebuild);
-  bundle.add(params, 'bundlePetalWidth', 0.3, 1.2, 0.01).name('Roundness').onChange(scheduleRebuild);
-  bundle.add(params, 'bundleBellFlare', 0.0, 0.3, 0.005).name('Bell Flare').onChange(scheduleRebuild);
-  bundle.add(params, 'bundlePetalTilt', 0.0, 1.0, 0.01).name('Petal Tilt').onChange(scheduleRebuild);
-  bundle.add(params, 'bundleCenterSize', 0.02, 0.15, 0.01).name('Center Size').onChange(scheduleRebuild);
+  bundle.addColor(params, 'bundleColor').name('Color').onChange(scheduleRebuild);
+  bundle.addColor(params, 'bundleCenterColor').name('Center').onChange(updateBundleCenterColor);
+  bundle.addColor(params, 'bundleStemBaseColor').name('Stem Base').onChange(scheduleRebuild);
+  bundle.addColor(params, 'bundleStemTipColor').name('Stem Tip').onChange(scheduleRebuild);
 
-  // ── Size ──
-  const size = gui.addFolder('Size');
-  size.add(params, 'scaleMin', 0.1, 1.0, 0.01).name('Scale Min').onChange(scheduleRebuild);
-  size.add(params, 'scaleMax', 0.2, 1.5, 0.01).name('Scale Max').onChange(scheduleRebuild);
-  size.add(params, 'stemHeightMin', 0.1, 1.0, 0.01).name('Stem Min').onChange(scheduleRebuild);
-  size.add(params, 'stemHeightMax', 0.2, 1.5, 0.01).name('Stem Max').onChange(scheduleRebuild);
+  // ── Clusters ──
+  const cluster = gui.addFolder('Clusters');
+  cluster.add(params, 'clusterPct', 0, 100, 1).name('%').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterPetalCount', 3, 10, 1).name('Petals').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterPetalLength', 0.04, 0.3, 0.01).name('Petal Length').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterPetalWidth', 0.2, 1.2, 0.01).name('Roundness').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterCenterSize', 0.01, 0.1, 0.005).name('Center Size').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterPetalTilt', 0.0, 1.0, 0.01).name('Petal Tilt').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterBellWidth', 0.02, 0.2, 0.005).name('Bell Width').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterBellFlare', 0.0, 0.15, 0.005).name('Bell Flare').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterStems', 1, 4, 1).name('Stems').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterBudsPerStem', 3, 10, 1).name('Buds/Stem').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterBudSpread', 0.01, 0.1, 0.005).name('Bud Spread').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterStemThickness', 0.2, 1.2, 0.01).name('Stem Thick').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterStemCurve', 0.0, 0.4, 0.01).name('Stem Curve').onChange(scheduleRebuild);
+  cluster.add(params, 'clusterStemHeightMult', 0.8, 2.0, 0.05).name('Height Mult').onChange(scheduleRebuild);
+  cluster.addColor(params, 'clusterColor').name('Color').onChange(scheduleRebuild);
+  cluster.addColor(params, 'clusterCenterColor').name('Center').onChange(updateClusterCenterColor);
+  cluster.addColor(params, 'clusterStemBaseColor').name('Stem Base').onChange(scheduleRebuild);
+  cluster.addColor(params, 'clusterStemTipColor').name('Stem Tip').onChange(scheduleRebuild);
 
-  // ── Colors ──
-  const colors = gui.addFolder('Colors');
-  colors.addColor(params, 'primaryColor').name('Single 1').onChange(scheduleRebuild);
-  colors.addColor(params, 'secondaryColor').name('Single 2').onChange(scheduleRebuild);
-  colors.addColor(params, 'centerColor').name('Single Center').onChange(updateSingleCenterColor);
-  colors.addColor(params, 'singleStemBaseColor').name('Stem Base').onChange(scheduleRebuild);
-  colors.addColor(params, 'singleStemTipColor').name('Stem Tip').onChange(scheduleRebuild);
-  colors.addColor(params, 'bundleColor').name('Bundle').onChange(scheduleRebuild);
-  colors.addColor(params, 'bundleCenterColor').name('Bundle Center').onChange(updateBundleCenterColor);
-  colors.addColor(params, 'bundleStemBaseColor').name('Bndl Stem Base').onChange(scheduleRebuild);
-  colors.addColor(params, 'bundleStemTipColor').name('Bndl Stem Tip').onChange(scheduleRebuild);
+  // ── Shared ──
+  const shared = gui.addFolder('Shared');
+  shared.add(params, 'flowerCount', 0, 210000, 1000).name('Total Flowers').onChange(scheduleRebuild);
+  shared.add(params, 'scaleMin', 0.1, 1.0, 0.01).name('Scale Min').onChange(scheduleRebuild);
+  shared.add(params, 'scaleMax', 0.2, 1.5, 0.01).name('Scale Max').onChange(scheduleRebuild);
+  shared.add(params, 'stemHeightMin', 0.1, 1.0, 0.01).name('Stem Min').onChange(scheduleRebuild);
+  shared.add(params, 'stemHeightMax', 0.2, 1.5, 0.01).name('Stem Max').onChange(scheduleRebuild);
+  shared.add(params, 'windStrength', 0, 2, 0.01).name('Wind').onChange(updateWindUniform);
 
   // ── Grass ──
   function updateGrassColors() {
@@ -1006,26 +1262,29 @@ function setupGUI() {
   function updatePatchHeight() {
     if (patchGrassMat) patchGrassMat.uniforms.uHeightScale.value = params.patchHeight;
   }
+  let grassRebuildTimer = null;
+  function scheduleGrassRebuild() {
+    clearTimeout(grassRebuildTimer);
+    grassRebuildTimer = setTimeout(() => {
+      rebuildAllGrass();
+      network.sendParams(params);
+    }, 150);
+  }
   const grass = gui.addFolder('Grass');
+  grass.add(params, 'grassCount', 10000, 600000, 10000).name('Density').onChange(scheduleGrassRebuild);
+  grass.add(params, 'grassHeight', 0.1, 3.0, 0.05).name('Height').onChange(updateGrassHeight);
+  grass.add(params, 'patchHeight', 0.1, 3.0, 0.05).name('Patch Height').onChange(updatePatchHeight);
   grass.addColor(params, 'grassBaseColor').name('Base').onChange(updateGrassColors);
   grass.addColor(params, 'grassTipColor').name('Tip').onChange(updateGrassColors);
-  grass.add(params, 'grassHeight', 0.2, 3.0, 0.05).name('Height').onChange(updateGrassHeight);
   grass.addColor(params, 'patchBaseColor').name('Patch Base').onChange(updatePatchColors);
   grass.addColor(params, 'patchTipColor').name('Patch Tip').onChange(updatePatchColors);
-  grass.add(params, 'patchHeight', 0.2, 3.0, 0.05).name('Patch Height').onChange(updatePatchHeight);
   grass.addColor(params, 'groundColor').name('Ground').onChange(() => {
     if (terrainMat) terrainMat.color.set(params.groundColor);
   });
 
-  // ── Field ──
-  const field = gui.addFolder('Field');
-  field.add(params, 'flowerCount', 500, 10000, 100).name('Count').onChange(scheduleRebuild);
-  field.add(params, 'bundleRatio', 0, 1, 0.05).name('Bundle %').onChange(scheduleRebuild);
-  field.add(params, 'windStrength', 0, 2, 0.01).name('Wind').onChange(updateWindUniform);
-
-  shape.open();
+  single.open();
   bundle.open();
-  colors.open();
+  cluster.open();
 }
 
 // ─── Player manager ──────────────────────────────────────
@@ -1033,8 +1292,12 @@ const playerManager = new PlayerManager(scene);
 
 // ─── Network: apply remote param changes ─────────────────
 function applyRemoteParams(remoteParams) {
+  const oldGrassCount = params.grassCount;
   Object.assign(params, remoteParams);
   rebuildFlowers();
+  if (params.grassCount !== oldGrassCount) {
+    rebuildAllGrass();
+  }
   setWindOnAll(params.windStrength);
   if (grassMat) {
     grassMat.uniforms.uBaseColor.value.set(params.grassBaseColor);
@@ -1049,6 +1312,7 @@ function applyRemoteParams(remoteParams) {
   if (terrainMat) terrainMat.color.set(params.groundColor);
   if (singleFlowerMat) singleFlowerMat.uniforms.uCenterColor.value.set(params.centerColor);
   if (bundleFlowerMat) bundleFlowerMat.uniforms.uCenterColor.value.set(params.bundleCenterColor);
+  if (clusterFlowerMat) clusterFlowerMat.uniforms.uCenterColor.value.set(params.clusterCenterColor);
   if (gui) gui.controllersRecursive().forEach((c) => c.updateDisplay());
 }
 
@@ -1060,14 +1324,25 @@ network.connect({
   onInit({ seed, params: serverParams, players, presets: serverPresets }) {
     _flowerSeed = seed;
 
-    // Merge server-saved presets into PRESETS
+    // Merge server-saved presets into PRESETS (never overwrite built-ins)
+    const builtInNames = new Set(Object.keys(PRESETS));
     if (serverPresets) {
       for (const [name, data] of Object.entries(serverPresets)) {
-        PRESETS[name] = data;
+        if (!builtInNames.has(name)) {
+          PRESETS[name] = data;
+        }
       }
     }
 
     if (serverParams) Object.assign(params, serverParams);
+
+    // Built-in presets always win over stale server params
+    const activePreset = PRESETS[params.preset];
+    if (activePreset && builtInNames.has(params.preset)) {
+      Object.assign(params, activePreset);
+    }
+
+    if (terrainMat) terrainMat.color.set(params.groundColor);
 
     resetToSeed(seed + 1);
     createGrass();
