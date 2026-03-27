@@ -2,6 +2,7 @@
 
 uniform float uTime;
 uniform float uWindStrength;
+uniform float uHeightScale;
 
 attribute vec3 offset;
 attribute float bladeScale;
@@ -15,7 +16,7 @@ void main() {
 
   // Scale the blade
   vec3 pos = position;
-  pos.y *= bladeScale;
+  pos.y *= bladeScale * uHeightScale;
 
   // Wind sway — stronger at tip
   float windTime = uTime * 1.2;
