@@ -1,4 +1,21 @@
 import { WebSocketServer } from 'ws';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const PRESETS_FILE = join(__dirname, '..', 'presets.json');
+
+function loadPresets() {
+  try {
+    if (existsSync(PRESETS_FILE)) return JSON.parse(readFileSync(PRESETS_FILE, 'utf8'));
+  } catch {}
+  return {};
+}
+
+function savePresets(presets) {
+  writeFileSync(PRESETS_FILE, JSON.stringify(presets, null, 2));
+}
 
 export function createWSHandler(httpServer) {
   // Use noServer mode so we only intercept upgrades to /ws,
@@ -19,6 +36,7 @@ export function createWSHandler(httpServer) {
   let nextId = 1;
   const clients = new Map(); // ws → { id, x, y, z, yaw }
   let currentParams = null;
+  let userPresets = loadPresets();
 
   function broadcast(msg, exclude) {
     const data = JSON.stringify(msg);
@@ -39,13 +57,14 @@ export function createWSHandler(httpServer) {
       }
     }
 
-    // Send init
+    // Send init (includes saved presets)
     ws.send(JSON.stringify({
       type: 'init',
       id,
       seed,
       params: currentParams,
       players,
+      presets: userPresets,
     }));
 
     // Notify others
@@ -68,6 +87,20 @@ export function createWSHandler(httpServer) {
       if (msg.type === 'params-update') {
         currentParams = msg.params;
         broadcast({ type: 'params-update', params: msg.params }, ws);
+      }
+
+      if (msg.type === 'preset-save' && msg.name && msg.data) {
+        const name = String(msg.name).slice(0, 50);
+        userPresets[name] = msg.data;
+        savePresets(userPresets);
+        broadcast({ type: 'preset-save', name, data: msg.data }, ws);
+      }
+
+      if (msg.type === 'preset-delete' && msg.name) {
+        const name = String(msg.name);
+        delete userPresets[name];
+        savePresets(userPresets);
+        broadcast({ type: 'preset-delete', name }, ws);
       }
 
       if (msg.type === 'chat') {

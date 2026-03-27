@@ -6,6 +6,8 @@ uniform float uWindStrength;
 attribute vec3 offset;
 attribute float stemHeight;
 attribute float phase;
+attribute float stemThickness;
+attribute float stemCurve;
 
 varying float vHeight;
 varying vec3 vWorldPos;
@@ -14,8 +16,13 @@ void main() {
   vHeight = position.y;  // 0 at base, 1 at tip
 
   vec3 pos = position;
-  pos.x *= 0.4;          // thin the blade geometry into a stem
+  pos.x *= stemThickness;  // stem width
   pos.y *= stemHeight;
+
+  // Static stem curve (arch outward using phase as direction)
+  float curveH = vHeight * vHeight;
+  pos.x += cos(phase) * stemCurve * curveH;
+  pos.z += sin(phase) * stemCurve * curveH;
 
   // Wind — must match flower shader exactly
   float windTime = uTime * 0.8;
