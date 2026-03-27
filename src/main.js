@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import GUI from 'lil-gui';
 
 import grassVert from './shaders/grass.vert.glsl';
@@ -8,6 +12,8 @@ import stemVert from './shaders/stem.vert.glsl';
 import stemFrag from './shaders/stem.frag.glsl';
 import flowerVert from './shaders/flower.vert.glsl';
 import flowerFrag from './shaders/flower.frag.glsl';
+import watercolorVert from './shaders/watercolor.vert.glsl';
+import watercolorFrag from './shaders/watercolor.frag.glsl';
 
 import { resetToSeed, seededRandom } from './lib/prng.js';
 import * as network from './lib/network.js';
@@ -15,7 +21,7 @@ import { PlayerManager } from './lib/players.js';
 
 // ─── Config ──────────────────────────────────────────────
 const FIELD_SIZE = 120;
-const FOG_COLOR = new THREE.Color(0xd4c4a8);
+const FOG_COLOR = new THREE.Color(0x87ceeb);
 const FOG_NEAR = 30;
 const FOG_FAR = 90;
 
@@ -218,6 +224,29 @@ const camera = new THREE.PerspectiveCamera(
   65, window.innerWidth / window.innerHeight, 0.1, 200
 );
 camera.position.set(0, 3, 0);
+
+// ─── Post-Processing ────────────────────────────────────
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+const WatercolorShader = {
+  uniforms: {
+    tDiffuse:       { value: null },
+    uResolution:    { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+    uEdgeStrength:  { value: 0.15 },
+    uPosterize:     { value: 0.35 },
+    uGrain:         { value: 0.03 },
+    uBleed:         { value: 1.0 },
+    uWarmth:        { value: 0.2 },
+    uSaturation:    { value: 1.15 },
+    uVignette:      { value: 0.15 },
+  },
+  vertexShader: watercolorVert,
+  fragmentShader: watercolorFrag,
+};
+
+const watercolorPass = new ShaderPass(WatercolorShader);
+composer.addPass(watercolorPass);
 
 // ─── Terrain ─────────────────────────────────────────────
 function getHeightAt(x, z) {
@@ -947,12 +976,16 @@ function rebuildFlowers() {
 
 // ─── Lighting ────────────────────────────────────────────
 function setupLighting() {
-  scene.add(new THREE.AmbientLight(0xffe4c4, 0.6));
+  const ambient = new THREE.AmbientLight(0xffe4c4, 0.6);
+  ambient.layers.enableAll();
+  scene.add(ambient);
   const sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
   sun.position.set(30, 40, 20);
+  sun.layers.enableAll();
   scene.add(sun);
   const fill = new THREE.DirectionalLight(0xffd4a0, 0.3);
   fill.position.set(-20, 10, -30);
+  fill.layers.enableAll();
   scene.add(fill);
 }
 
@@ -1041,9 +1074,13 @@ function updateMovement(dt) {
 }
 
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+  watercolorPass.uniforms.uResolution.value.set(w, h);
 });
 
 // ─── Helpers: update uniforms across all flower materials ─
@@ -1282,6 +1319,17 @@ function setupGUI() {
     if (terrainMat) terrainMat.color.set(params.groundColor);
   });
 
+  // ── Style (watercolor post-processing) ──
+  const style = gui.addFolder('Style');
+  const wu = watercolorPass.uniforms;
+  style.add(wu.uEdgeStrength, 'value', 0, 1, 0.01).name('Edge Strength');
+  style.add(wu.uPosterize,    'value', 0, 1, 0.01).name('Posterize');
+  style.add(wu.uGrain,        'value', 0, 0.15, 0.005).name('Grain');
+  style.add(wu.uBleed,        'value', 0, 3, 0.1).name('Bleed');
+  style.add(wu.uWarmth,       'value', 0, 1, 0.01).name('Warmth');
+  style.add(wu.uSaturation,   'value', 0.5, 1.5, 0.01).name('Saturation');
+  style.add(wu.uVignette,     'value', 0, 1, 0.01).name('Vignette');
+
   single.open();
   bundle.open();
   cluster.open();
@@ -1316,9 +1364,23 @@ function applyRemoteParams(remoteParams) {
   if (gui) gui.controllersRecursive().forEach((c) => c.updateDisplay());
 }
 
+// ─── GLB Model ──────────────────────────────────────────
+function loadCottage() {
+  const loader = new GLTFLoader();
+  loader.load('/cottage.glb', (gltf) => {
+    const model = gltf.scene;
+    const cx = 3, cz = -3;
+    const cy = getHeightAt(cx, cz);
+    model.position.set(cx, cy + 2.75, cz);
+    model.scale.setScalar(4.0);
+    scene.add(model);
+  });
+}
+
 // ─── Init (deferred until server sends seed) ─────────────
 createTerrain();
 setupLighting();
+loadCottage();
 
 network.connect({
   onInit({ seed, params: serverParams, players, presets: serverPresets }) {
@@ -1398,12 +1460,13 @@ network.connect({
   },
 });
 
-const clock = new THREE.Clock();
+const timer = new THREE.Timer();
 
 function animate() {
   requestAnimationFrame(animate);
-  const dt = clock.getDelta();
-  const t = clock.getElapsedTime();
+  timer.update();
+  const dt = timer.getDelta();
+  const t = timer.getElapsed();
 
   if (grassMat) grassMat.uniforms.uTime.value = t;
   if (patchGrassMat) patchGrassMat.uniforms.uTime.value = t;
@@ -1411,5 +1474,6 @@ function animate() {
 
   updateMovement(dt);
   playerManager.tick(dt);
-  renderer.render(scene, camera);
+
+  composer.render();
 }
