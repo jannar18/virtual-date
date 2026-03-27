@@ -78,38 +78,29 @@ const PRESETS = {
     groundColor: '#feffbd',
   },
   "Howl's Secret Garden": {
-    // Singles: tiny white 5-petal wildflowers, dense clusters, very small
     petalCount: 5, petalLength: 0.15, petalWidth: 0.7, centerSize: 0.04,
     singleStems: 4, singleStemSpread: 0.06, singleStemThickness: 0.25, singleStemCurve: 0.0,
     singlePetalTilt: 0.0, singleBellWidth: 0.08, singleBellFlare: 0.0,
-    // Bundles: pink rounded single-petal buds, dense on stems
     bundleStems: 4, bundleFlowersPerStem: 4, bundleStemSpread: 0.12,
     bundleStemThickness: 0.3, bundleStemCurve: 0.2, bundleStemHeightMult: 1.8,
     bundlePetalCount: 1, bundlePetalLength: 0.12, bundlePetalWidth: 1.2,
     bundleBellWidth: 0.14, bundleBellFlare: 0.02, bundlePetalTilt: 0.85, bundleCenterSize: 0.03,
-    // Clusters: lavender hydrangea-like clusters, tight bud rings at stem tops
     clusterStems: 1, clusterBudsPerStem: 6, clusterBudSpread: 0.04,
     clusterStemThickness: 0.4, clusterStemCurve: 0.1, clusterStemHeightMult: 1.4,
     clusterPetalCount: 5, clusterPetalLength: 0.08, clusterPetalWidth: 0.55,
     clusterBellWidth: 0.06, clusterBellFlare: 0.01, clusterPetalTilt: 0.92, clusterCenterSize: 0.02,
-    // Scale & field
-    scaleMin: 0.06, scaleMax: 0.56, stemHeightMin: 0.08, stemHeightMax: 0.4,
+    scaleMin: 0.1, scaleMax: 0.75, stemHeightMin: 0.2, stemHeightMax: 0.75,
     flowerCount: 210000, singlePct: 90, bundlePct: 8, clusterPct: 20, windStrength: 0.19,
-    // Colors — white wildflowers
     primaryColor: '#ffffff', secondaryColor: '#ffe5f0', centerColor: '#ffee70',
-    // Colors — soft pink buds
     bundleColor: '#ffc7d6', bundleCenterColor: '#f58fa8',
-    // Colors — lavender clusters
     clusterColor: '#b49adb', clusterCenterColor: '#9a84c0',
-    // Stems — green, uniform
     singleStemBaseColor: '#5a9a48', singleStemTipColor: '#5a9a48',
-    bundleStemBaseColor: '#4a8a3d', bundleStemTipColor: '#6a9a55',
-    clusterStemBaseColor: '#4a8a3d', clusterStemTipColor: '#6a9a55',
-    // Grass — ultra dense, very short, less wind sway
+    bundleStemBaseColor: '#9fc119', bundleStemTipColor: '#6a9a55',
+    clusterStemBaseColor: '#71c261', clusterStemTipColor: '#71c261',
     grassCount: 600000,
-    grassBaseColor: '#77b964', grassTipColor: '#add978', grassHeight: 0.1,
-    patchBaseColor: '#4a9a3a', patchTipColor: '#6ab050', patchHeight: 0.2,
-    groundColor: '#5a8b4b',
+    grassBaseColor: '#41a45a', grassTipColor: '#add978', grassHeight: 0.2,
+    patchBaseColor: '#1d8724', patchTipColor: '#56a13a', patchHeight: 0.55,
+    groundColor: '#d9ff42',
   },
   Daisy:       { petalCount: 8,  petalLength: 0.5,  petalWidth: 0.55, centerSize: 0.12, singlePetalTilt: 0.0,  singleBellWidth: 0.25, singleBellFlare: 0.0 },
   Poppy:       { petalCount: 4,  petalLength: 0.55, petalWidth: 0.85, centerSize: 0.08, singlePetalTilt: 0.15, singleBellWidth: 0.28, singleBellFlare: 0.04 },
@@ -260,6 +251,100 @@ function getHeightAt(x, z) {
   return h;
 }
 
+function createGroundTexture() {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // Light base
+  ctx.fillStyle = '#e8f0d8';
+  ctx.fillRect(0, 0, size, size);
+
+  // Large soft blotches for color variation across the ground
+  for (let i = 0; i < 30; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = 40 + Math.random() * 80;
+    ctx.globalAlpha = 0.15 + Math.random() * 0.15;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    const hues = ['#b8d888', '#d8e8a0', '#e8e070', '#f0e860'];
+    const hue = hues[Math.floor(Math.random() * hues.length)];
+    grad.addColorStop(0, hue);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+
+  // Dense grass blade strokes — high contrast, visible
+  const bladeColors = ['#6a9840', '#88b858', '#a0c868', '#4a7828', '#78a848', '#c0d888', '#c8d050', '#d8e060', '#b0c040'];
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 6000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const len = 4 + Math.random() * 12;
+    const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.0;
+    ctx.globalAlpha = 0.4 + Math.random() * 0.4;
+    ctx.strokeStyle = bladeColors[Math.floor(Math.random() * bladeColors.length)];
+    ctx.lineWidth = 1 + Math.random() * 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len);
+    ctx.stroke();
+  }
+
+  // Small dark clumps for depth
+  for (let i = 0; i < 400; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    ctx.globalAlpha = 0.2 + Math.random() * 0.15;
+    ctx.fillStyle = '#3a5a1a';
+    ctx.beginPath();
+    ctx.arc(x, y, 1 + Math.random() * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Bright yellow-green highlights
+  const highlightColors = ['#e8ffa0', '#f0f060', '#ffe850', '#f8f080', '#e0e040'];
+  for (let i = 0; i < 500; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    ctx.globalAlpha = 0.3 + Math.random() * 0.25;
+    ctx.fillStyle = highlightColors[Math.floor(Math.random() * highlightColors.length)];
+    ctx.beginPath();
+    ctx.arc(x, y, 0.5 + Math.random() * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Scattered flower-like spots — coral, pink, yellow
+  const flowerSpots = [
+    '#ff7f6a', '#ff6b5a', '#e86050',           // coral
+    '#ff90b0', '#ffa0c0', '#ff78a8', '#e870a0', // pink
+    '#ffe040', '#ffd030', '#ffea60', '#f0d020',  // yellow
+  ];
+  for (let i = 0; i < 350; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = 1 + Math.random() * 2.5;
+    ctx.globalAlpha = 0.5 + Math.random() * 0.35;
+    ctx.fillStyle = flowerSpots[Math.floor(Math.random() * flowerSpots.length)];
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.globalAlpha = 1;
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(10, 10);
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
+}
+
 function createTerrain() {
   const geo = new THREE.PlaneGeometry(FIELD_SIZE, FIELD_SIZE, 200, 200);
   geo.rotateX(-Math.PI / 2);
@@ -268,7 +353,11 @@ function createTerrain() {
     pos.setY(i, getHeightAt(pos.getX(i), pos.getZ(i)));
   }
   geo.computeVertexNormals();
-  terrainMat = new THREE.MeshLambertMaterial({ color: params.groundColor });
+  const groundTex = createGroundTexture();
+  terrainMat = new THREE.MeshLambertMaterial({
+    color: params.groundColor,
+    map: groundTex,
+  });
   scene.add(new THREE.Mesh(geo, terrainMat));
 }
 
