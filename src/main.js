@@ -38,6 +38,19 @@ const PRESET_KEYS = [
 ];
 
 const PRESETS = {
+  'Desert Spring': {
+    petalCount: 4, petalLength: 0.6, petalWidth: 1.0, centerSize: 0.1,
+    singleStems: 1, singleStemSpread: 0.02, singleStemThickness: 0.65, singleStemCurve: 0.0,
+    singlePetalTilt: 0.25, singleBellWidth: 0.05, singleBellFlare: 0.0,
+    bundleStems: 6, bundleFlowersPerStem: 4, bundleStemSpread: 0.2,
+    bundleStemThickness: 0.5, bundleStemCurve: 0.35, bundleStemHeightMult: 2.0,
+    bundlePetalCount: 4, bundlePetalLength: 0.1, bundlePetalWidth: 1.1,
+    bundleBellWidth: 0.2, bundleBellFlare: 0.05, bundlePetalTilt: 1.0, bundleCenterSize: 0.02,
+    scaleMin: 0.1, scaleMax: 0.6, stemHeightMin: 0.1, stemHeightMax: 0.75,
+    flowerCount: 10000, bundleRatio: 0.45, windStrength: 0.83,
+    primaryColor: '#ffebfc', secondaryColor: '#ffda8a', centerColor: '#fff3a0',
+    bundleColor: '#ffaf94', bundleCenterColor: '#ffe4a0',
+  },
   Daisy:       { petalCount: 8,  petalLength: 0.5,  petalWidth: 0.55, centerSize: 0.12, singlePetalTilt: 0.0,  singleBellWidth: 0.25, singleBellFlare: 0.0 },
   Poppy:       { petalCount: 4,  petalLength: 0.55, petalWidth: 0.85, centerSize: 0.08, singlePetalTilt: 0.15, singleBellWidth: 0.28, singleBellFlare: 0.04 },
   Cosmos:      { petalCount: 8,  petalLength: 0.6,  petalWidth: 0.5,  centerSize: 0.10, singlePetalTilt: 0.0,  singleBellWidth: 0.25, singleBellFlare: 0.0 },
@@ -48,55 +61,55 @@ const PRESETS = {
 
 // ─── Tweakable params ────────────────────────────────────
 const params = {
-  preset: 'Wild Rose',
+  preset: 'Desert Spring',
 
   // Single wildflower shape
-  petalCount: 5,
-  petalLength: 0.5,
-  petalWidth: 0.75,
-  centerSize: 0.10,
+  petalCount: 4,
+  petalLength: 0.6,
+  petalWidth: 1.0,
+  centerSize: 0.1,
   singleStems: 1,
-  singleStemSpread: 0.06,
-  singleStemThickness: 0.4,
+  singleStemSpread: 0.02,
+  singleStemThickness: 0.65,
   singleStemCurve: 0.0,
-  singleBellWidth: 0.25,
+  singleBellWidth: 0.05,
   singleBellFlare: 0.0,
-  singlePetalTilt: 0.0,
+  singlePetalTilt: 0.25,
 
   // Bundled bell-flower shape
-  bundleStems: 3,
-  bundleFlowersPerStem: 3,
-  bundleStemSpread: 0.08,
-  bundleStemThickness: 0.7,
-  bundleStemCurve: 0.15,
-  bundleStemHeightMult: 1.4,
-  bundlePetalCount: 8,
-  bundlePetalLength: 0.20,
-  bundlePetalWidth: 0.95,
-  bundleBellWidth: 0.18,
-  bundleBellFlare: 0.15,
+  bundleStems: 6,
+  bundleFlowersPerStem: 4,
+  bundleStemSpread: 0.2,
+  bundleStemThickness: 0.5,
+  bundleStemCurve: 0.35,
+  bundleStemHeightMult: 2.0,
+  bundlePetalCount: 4,
+  bundlePetalLength: 0.1,
+  bundlePetalWidth: 1.1,
+  bundleBellWidth: 0.2,
+  bundleBellFlare: 0.05,
   bundlePetalTilt: 1.0,
-  bundleCenterSize: 0.05,
+  bundleCenterSize: 0.02,
 
   // Scale & field
-  scaleMin: 0.3,
-  scaleMax: 0.7,
-  flowerCount: 4000,
-  bundleRatio: 0.35,
-  stemHeightMin: 0.3,
-  stemHeightMax: 0.7,
+  scaleMin: 0.1,
+  scaleMax: 0.6,
+  flowerCount: 10000,
+  bundleRatio: 0.45,
+  stemHeightMin: 0.1,
+  stemHeightMax: 0.75,
 
-  // Colors — singles (peony pink + yellowish cream)
-  primaryColor: '#f2b8c6',
-  secondaryColor: '#fef1c7',
+  // Colors — singles
+  primaryColor: '#ffebfc',
+  secondaryColor: '#ffda8a',
   centerColor: '#fff3a0',
 
   // Colors — bundles (coral)
-  bundleColor: '#f08070',
+  bundleColor: '#ffaf94',
   bundleCenterColor: '#ffe4a0',
 
   // Wind
-  windStrength: 0.6,
+  windStrength: 0.83,
 };
 
 // ─── Renderer ────────────────────────────────────────────
@@ -780,7 +793,7 @@ function setupGUI() {
   };
 
   presetActions.delete = function () {
-    const builtIn = ['Daisy','Poppy','Cosmos','Buttercup','Wild Rose','Sunflower'];
+    const builtIn = ['Desert Spring','Daisy','Poppy','Cosmos','Buttercup','Wild Rose','Sunflower'];
     const custom = Object.keys(PRESETS).filter(n => !builtIn.includes(n));
     if (custom.length === 0) { alert('No saved presets to delete.'); return; }
     const name = prompt('Delete preset:\n' + custom.join(', '));
