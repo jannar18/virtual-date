@@ -11,6 +11,7 @@ attribute float stemCurve;
 
 varying float vHeight;
 varying vec3 vWorldPos;
+varying vec3 vNormal;
 
 void main() {
   vHeight = position.y;  // 0 at base, 1 at tip
@@ -31,6 +32,9 @@ void main() {
   float sway = vHeight * vHeight;
   pos.x += swayX * sway;
   pos.y += sin(uTime * 1.5 + phase * 6.28) * 0.03 * sway;
+
+  // Synthetic normal from wind/curve displacement
+  vNormal = normalize(vec3(-swayX * 0.3, 1.0, -sin(phase) * stemCurve * 0.3));
 
   pos += offset;
   vWorldPos = pos;

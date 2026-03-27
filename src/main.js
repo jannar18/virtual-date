@@ -14,6 +14,7 @@ import flowerVert from './shaders/flower.vert.glsl';
 import flowerFrag from './shaders/flower.frag.glsl';
 import watercolorVert from './shaders/watercolor.vert.glsl';
 import watercolorFrag from './shaders/watercolor.frag.glsl';
+import ghibliFrag from './shaders/ghibli.frag.glsl';
 
 import { resetToSeed, seededRandom } from './lib/prng.js';
 import * as network from './lib/network.js';
@@ -24,6 +25,7 @@ const FIELD_SIZE = 120;
 const FOG_COLOR = new THREE.Color(0x87ceeb);
 const FOG_NEAR = 30;
 const FOG_FAR = 90;
+const SUN_DIR = new THREE.Vector3(30, 40, 20).normalize();
 
 // ─── Presets ─────────────────────────────────────────────
 // Keys that get saved/loaded in a preset (everything except 'preset' itself)
@@ -229,24 +231,25 @@ camera.position.set(0, 3, 0);
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
-const WatercolorShader = {
+const GhibliShader = {
   uniforms: {
-    tDiffuse:       { value: null },
-    uResolution:    { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-    uEdgeStrength:  { value: 0.15 },
-    uPosterize:     { value: 0.35 },
-    uGrain:         { value: 0.03 },
-    uBleed:         { value: 1.0 },
-    uWarmth:        { value: 0.2 },
-    uSaturation:    { value: 1.15 },
-    uVignette:      { value: 0.15 },
+    tDiffuse:           { value: null },
+    uResolution:        { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+    uOutlineStrength:   { value: 0.4 },
+    uOutlineThickness:  { value: 1.0 },
+    uColorSteps:        { value: 14.0 },
+    uQuantizeStrength:  { value: 0.15 },
+    uWarmth:            { value: 0.15 },
+    uSaturation:        { value: 1.2 },
+    uHazeStrength:      { value: 0.1 },
+    uHazeColor:         { value: new THREE.Color(0.53, 0.81, 0.92) }, // sky blue
   },
   vertexShader: watercolorVert,
-  fragmentShader: watercolorFrag,
+  fragmentShader: ghibliFrag,
 };
 
-const watercolorPass = new ShaderPass(WatercolorShader);
-composer.addPass(watercolorPass);
+const ghibliPass = new ShaderPass(GhibliShader);
+composer.addPass(ghibliPass);
 
 // ─── Terrain ─────────────────────────────────────────────
 function getHeightAt(x, z) {
@@ -323,6 +326,10 @@ function createGrass() {
       uTipColor: { value: new THREE.Color(params.grassTipColor) },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
+      uLightDir: { value: SUN_DIR },
+      uCelBands: { value: 3.0 },
+      uCelSoftness: { value: 0.08 },
+      uAmbientStrength: { value: 0.65 },
     },
     side: THREE.DoubleSide,
   });
@@ -411,6 +418,10 @@ function createPatchGrass() {
       uTipColor: { value: new THREE.Color(params.patchTipColor) },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
+      uLightDir: { value: SUN_DIR },
+      uCelBands: { value: 3.0 },
+      uCelSoftness: { value: 0.08 },
+      uAmbientStrength: { value: 0.65 },
     },
     side: THREE.DoubleSide,
   });
@@ -584,6 +595,10 @@ function makeStemGroup(offsets, stemHeights, phases, stemThicknesses, stemCurves
       uStemTip: { value: tipColor },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
+      uLightDir: { value: SUN_DIR },
+      uCelBands: { value: 3.0 },
+      uCelSoftness: { value: 0.08 },
+      uAmbientStrength: { value: 0.65 },
     },
     side: THREE.DoubleSide,
   });
@@ -598,6 +613,7 @@ function makeFlowerGroup(baseGeo, headOffsets, scales, phases, rotYs, petalColor
   const geo = new THREE.InstancedBufferGeometry();
   geo.index = baseGeo.index;
   geo.setAttribute('position', baseGeo.getAttribute('position'));
+  geo.setAttribute('normal', baseGeo.getAttribute('normal'));
   geo.setAttribute('petalDist', baseGeo.getAttribute('petalDist'));
   geo.setAttribute('offset', new THREE.InstancedBufferAttribute(headOffsets, 3));
   geo.setAttribute('flowerScale', new THREE.InstancedBufferAttribute(scales, 1));
@@ -613,6 +629,10 @@ function makeFlowerGroup(baseGeo, headOffsets, scales, phases, rotYs, petalColor
       uCenterColor: { value: centerCol },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
+      uLightDir: { value: SUN_DIR },
+      uCelBands: { value: 3.0 },
+      uCelSoftness: { value: 0.08 },
+      uAmbientStrength: { value: 0.65 },
     },
     side: THREE.DoubleSide,
   });
@@ -1080,7 +1100,7 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
   composer.setSize(w, h);
-  watercolorPass.uniforms.uResolution.value.set(w, h);
+  ghibliPass.uniforms.uResolution.value.set(w, h);
 });
 
 // ─── Helpers: update uniforms across all flower materials ─
@@ -1102,6 +1122,14 @@ function setWindOnAll(v) {
   if (bundleFlowerMat) bundleFlowerMat.uniforms.uWindStrength.value = v;
   if (clusterStemMat) clusterStemMat.uniforms.uWindStrength.value = v;
   if (clusterFlowerMat) clusterFlowerMat.uniforms.uWindStrength.value = v;
+}
+
+function setCelUniformOnAll(name, value) {
+  const mats = [grassMat, patchGrassMat, singleStemMat, singleFlowerMat,
+                bundleStemMat, bundleFlowerMat, clusterStemMat, clusterFlowerMat];
+  for (const m of mats) {
+    if (m && m.uniforms[name]) m.uniforms[name].value = value;
+  }
 }
 
 // ─── GUI ─────────────────────────────────────────────────
@@ -1319,16 +1347,22 @@ function setupGUI() {
     if (terrainMat) terrainMat.color.set(params.groundColor);
   });
 
-  // ── Style (watercolor post-processing) ──
+  // ── Style (Ghibli post-processing + cel-shading) ──
   const style = gui.addFolder('Style');
-  const wu = watercolorPass.uniforms;
-  style.add(wu.uEdgeStrength, 'value', 0, 1, 0.01).name('Edge Strength');
-  style.add(wu.uPosterize,    'value', 0, 1, 0.01).name('Posterize');
-  style.add(wu.uGrain,        'value', 0, 0.15, 0.005).name('Grain');
-  style.add(wu.uBleed,        'value', 0, 3, 0.1).name('Bleed');
-  style.add(wu.uWarmth,       'value', 0, 1, 0.01).name('Warmth');
-  style.add(wu.uSaturation,   'value', 0.5, 1.5, 0.01).name('Saturation');
-  style.add(wu.uVignette,     'value', 0, 1, 0.01).name('Vignette');
+  const gu = ghibliPass.uniforms;
+  style.add(gu.uOutlineStrength,  'value', 0, 1, 0.01).name('Outline Strength');
+  style.add(gu.uOutlineThickness, 'value', 0.5, 3, 0.1).name('Outline Thickness');
+  style.add(gu.uColorSteps,       'value', 4, 32, 1).name('Color Steps');
+  style.add(gu.uQuantizeStrength,  'value', 0, 0.5, 0.01).name('Quantize');
+  style.add(gu.uWarmth,           'value', 0, 1, 0.01).name('Warmth');
+  style.add(gu.uSaturation,       'value', 0.5, 1.5, 0.01).name('Saturation');
+  style.add(gu.uHazeStrength,     'value', 0, 0.5, 0.01).name('Haze');
+  const celBandsCtrl = { celBands: 3.0 };
+  style.add(celBandsCtrl, 'celBands', 2, 8, 1).name('Cel Bands').onChange(v => setCelUniformOnAll('uCelBands', v));
+  const celSoftCtrl = { celSoftness: 0.08 };
+  style.add(celSoftCtrl, 'celSoftness', 0.01, 0.3, 0.01).name('Cel Softness').onChange(v => setCelUniformOnAll('uCelSoftness', v));
+  const ambientCtrl = { ambient: 0.45 };
+  style.add(ambientCtrl, 'ambient', 0.1, 0.8, 0.01).name('Ambient').onChange(v => setCelUniformOnAll('uAmbientStrength', v));
 
   single.open();
   bundle.open();
@@ -1371,8 +1405,22 @@ function loadCottage() {
     const model = gltf.scene;
     const cx = 3, cz = -3;
     const cy = getHeightAt(cx, cz);
-    model.position.set(cx, cy + 2.75, cz);
-    model.scale.setScalar(4.0);
+    model.position.set(cx, cy + 4.75, cz);
+    model.scale.setScalar(8.0);
+
+    // Brighten and saturate GLB materials to match the scene style
+    model.traverse((child) => {
+      if (child.isMesh && child.material) {
+        const mat = child.material;
+        if (mat.color) {
+          const hsl = {};
+          mat.color.getHSL(hsl);
+          mat.color.setHSL(hsl.h, Math.min(hsl.s * 5.0, 1.0), Math.min(hsl.l * 5.0, 1.0));
+        }
+        mat.emissive?.setScalar(0.3);
+      }
+    });
+
     scene.add(model);
   });
 }

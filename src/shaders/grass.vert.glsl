@@ -10,6 +10,7 @@ attribute float phase;
 
 varying float vHeight;
 varying vec3 vWorldPos;
+varying vec3 vNormal;
 
 void main() {
   vHeight = position.y;  // blade mesh: y goes 0→1
@@ -30,6 +31,9 @@ void main() {
   float sway = vHeight * vHeight; // quadratic — base stays put
   pos.x += windX * sway;
   pos.z += windZ * sway;
+
+  // Synthetic normal from wind displacement
+  vNormal = normalize(vec3(-windX * 0.3, 1.0, -windZ * 0.3));
 
   // Place on terrain
   pos += offset;

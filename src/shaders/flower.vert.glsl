@@ -14,6 +14,7 @@ attribute float swayFactor; // 1.0 at stem tip, less for flowers lower on the st
 varying vec3 vColor;
 varying float vPetalDist;
 varying vec3 vWorldPos;
+varying vec3 vNormal;
 
 void main() {
   vColor = petalColor;
@@ -26,6 +27,9 @@ void main() {
   float c = cos(rotY);
   float s = sin(rotY);
   pos = vec3(pos.x * c - pos.z * s, pos.y, pos.x * s + pos.z * c);
+
+  // Rotate normal by same Y rotation
+  vNormal = vec3(normal.x * c - normal.z * s, normal.y, normal.x * s + normal.z * c);
 
   // Wind — matches stem shader, scaled by swayFactor for mid-stem flowers
   float windTime = uTime * 0.8;
