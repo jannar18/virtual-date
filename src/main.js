@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import GUI from 'lil-gui';
 
 import grassVert from './shaders/grass.vert.glsl';
@@ -8,6 +12,8 @@ import stemVert from './shaders/stem.vert.glsl';
 import stemFrag from './shaders/stem.frag.glsl';
 import flowerVert from './shaders/flower.vert.glsl';
 import flowerFrag from './shaders/flower.frag.glsl';
+import watercolorVert from './shaders/watercolor.vert.glsl';
+import ghibliFrag from './shaders/ghibli.frag.glsl';
 
 import { resetToSeed, seededRandom } from './lib/prng.js';
 import * as network from './lib/network.js';
@@ -15,9 +21,10 @@ import { PlayerManager } from './lib/players.js';
 
 // ─── Config ──────────────────────────────────────────────
 const FIELD_SIZE = 120;
-const FOG_COLOR = new THREE.Color(0xd4c4a8);
+const FOG_COLOR = new THREE.Color(0x87ceeb);
 const FOG_NEAR = 30;
 const FOG_FAR = 90;
+const SUN_DIR = new THREE.Vector3(30, 40, 20).normalize();
 
 // ─── Presets ─────────────────────────────────────────────
 // Keys that get saved/loaded in a preset (everything except 'preset' itself)
@@ -45,6 +52,7 @@ const PRESET_KEYS = [
   'grassBaseColor','grassTipColor','grassHeight',
   'patchBaseColor','patchTipColor','patchHeight','groundColor',
   'windStrength',
+  'celBands','celSoftness','ambientStrength',
 ];
 
 const PRESETS = {
@@ -70,38 +78,29 @@ const PRESETS = {
     groundColor: '#feffbd',
   },
   "Howl's Secret Garden": {
-    // Singles: tiny white 5-petal wildflowers, dense clusters, very small
     petalCount: 5, petalLength: 0.15, petalWidth: 0.7, centerSize: 0.04,
     singleStems: 4, singleStemSpread: 0.06, singleStemThickness: 0.25, singleStemCurve: 0.0,
     singlePetalTilt: 0.0, singleBellWidth: 0.08, singleBellFlare: 0.0,
-    // Bundles: pink rounded single-petal buds, dense on stems
     bundleStems: 4, bundleFlowersPerStem: 4, bundleStemSpread: 0.12,
     bundleStemThickness: 0.3, bundleStemCurve: 0.2, bundleStemHeightMult: 1.8,
     bundlePetalCount: 1, bundlePetalLength: 0.12, bundlePetalWidth: 1.2,
     bundleBellWidth: 0.14, bundleBellFlare: 0.02, bundlePetalTilt: 0.85, bundleCenterSize: 0.03,
-    // Clusters: lavender hydrangea-like clusters, tight bud rings at stem tops
     clusterStems: 1, clusterBudsPerStem: 6, clusterBudSpread: 0.04,
     clusterStemThickness: 0.4, clusterStemCurve: 0.1, clusterStemHeightMult: 1.4,
     clusterPetalCount: 5, clusterPetalLength: 0.08, clusterPetalWidth: 0.55,
     clusterBellWidth: 0.06, clusterBellFlare: 0.01, clusterPetalTilt: 0.92, clusterCenterSize: 0.02,
-    // Scale & field
-    scaleMin: 0.06, scaleMax: 0.56, stemHeightMin: 0.08, stemHeightMax: 0.4,
+    scaleMin: 0.1, scaleMax: 0.75, stemHeightMin: 0.2, stemHeightMax: 0.75,
     flowerCount: 210000, singlePct: 90, bundlePct: 8, clusterPct: 20, windStrength: 0.19,
-    // Colors — white wildflowers
     primaryColor: '#ffffff', secondaryColor: '#ffe5f0', centerColor: '#ffee70',
-    // Colors — soft pink buds
     bundleColor: '#ffc7d6', bundleCenterColor: '#f58fa8',
-    // Colors — lavender clusters
     clusterColor: '#b49adb', clusterCenterColor: '#9a84c0',
-    // Stems — green, uniform
     singleStemBaseColor: '#5a9a48', singleStemTipColor: '#5a9a48',
-    bundleStemBaseColor: '#4a8a3d', bundleStemTipColor: '#6a9a55',
-    clusterStemBaseColor: '#4a8a3d', clusterStemTipColor: '#6a9a55',
-    // Grass — ultra dense, very short, less wind sway
+    bundleStemBaseColor: '#9fc119', bundleStemTipColor: '#6a9a55',
+    clusterStemBaseColor: '#71c261', clusterStemTipColor: '#71c261',
     grassCount: 600000,
-    grassBaseColor: '#77b964', grassTipColor: '#add978', grassHeight: 0.1,
-    patchBaseColor: '#4a9a3a', patchTipColor: '#6ab050', patchHeight: 0.2,
-    groundColor: '#5a8b4b',
+    grassBaseColor: '#41a45a', grassTipColor: '#add978', grassHeight: 0.2,
+    patchBaseColor: '#1d8724', patchTipColor: '#56a13a', patchHeight: 0.55,
+    groundColor: '#d9ff42',
   },
   Daisy:       { petalCount: 8,  petalLength: 0.5,  petalWidth: 0.55, centerSize: 0.12, singlePetalTilt: 0.0,  singleBellWidth: 0.25, singleBellFlare: 0.0 },
   Poppy:       { petalCount: 4,  petalLength: 0.55, petalWidth: 0.85, centerSize: 0.08, singlePetalTilt: 0.15, singleBellWidth: 0.28, singleBellFlare: 0.04 },
@@ -201,6 +200,11 @@ const params = {
 
   // Wind
   windStrength: 0.83,
+
+  // Cel-shading
+  celBands: 3.0,
+  celSoftness: 0.08,
+  ambientStrength: 0.65,
 };
 
 // ─── Renderer ────────────────────────────────────────────
@@ -219,6 +223,31 @@ const camera = new THREE.PerspectiveCamera(
 );
 camera.position.set(0, 3, 0);
 
+// ─── Post-Processing ────────────────────────────────────
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+const pixelRatio = renderer.getPixelRatio();
+const GhibliShader = {
+  uniforms: {
+    tDiffuse:           { value: null },
+    uResolution:        { value: new THREE.Vector2(window.innerWidth * pixelRatio, window.innerHeight * pixelRatio) },
+    uOutlineStrength:   { value: 0.4 },
+    uOutlineThickness:  { value: 1.0 },
+    uColorSteps:        { value: 14.0 },
+    uQuantizeStrength:  { value: 0.15 },
+    uWarmth:            { value: 0.15 },
+    uSaturation:        { value: 1.2 },
+    uHazeStrength:      { value: 0.1 },
+    uHazeColor:         { value: new THREE.Color(0.53, 0.81, 0.92) }, // sky blue
+  },
+  vertexShader: watercolorVert,
+  fragmentShader: ghibliFrag,
+};
+
+const ghibliPass = new ShaderPass(GhibliShader);
+composer.addPass(ghibliPass);
+
 // ─── Terrain ─────────────────────────────────────────────
 function getHeightAt(x, z) {
   let h = 0;
@@ -226,6 +255,100 @@ function getHeightAt(x, z) {
   h += Math.sin(x * 0.05 + 1.0) * Math.cos(z * 0.04 + 2.0) * 1.0;
   h += Math.sin(x * 0.1 + 3.0) * Math.sin(z * 0.08 + 1.5) * 0.5;
   return h;
+}
+
+function createGroundTexture() {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // Light base
+  ctx.fillStyle = '#e8f0d8';
+  ctx.fillRect(0, 0, size, size);
+
+  // Large soft blotches for color variation across the ground
+  for (let i = 0; i < 30; i++) {
+    const x = seededRandom() * size;
+    const y = seededRandom() * size;
+    const r = 40 + seededRandom() * 80;
+    ctx.globalAlpha = 0.15 + seededRandom() * 0.15;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    const hues = ['#b8d888', '#d8e8a0', '#e8e070', '#f0e860'];
+    const hue = hues[Math.floor(seededRandom() * hues.length)];
+    grad.addColorStop(0, hue);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+
+  // Dense grass blade strokes — high contrast, visible
+  const bladeColors = ['#6a9840', '#88b858', '#a0c868', '#4a7828', '#78a848', '#c0d888', '#c8d050', '#d8e060', '#b0c040'];
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 6000; i++) {
+    const x = seededRandom() * size;
+    const y = seededRandom() * size;
+    const len = 4 + seededRandom() * 12;
+    const angle = -Math.PI / 2 + (seededRandom() - 0.5) * 1.0;
+    ctx.globalAlpha = 0.4 + seededRandom() * 0.4;
+    ctx.strokeStyle = bladeColors[Math.floor(seededRandom() * bladeColors.length)];
+    ctx.lineWidth = 1 + seededRandom() * 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len);
+    ctx.stroke();
+  }
+
+  // Small dark clumps for depth
+  for (let i = 0; i < 400; i++) {
+    const x = seededRandom() * size;
+    const y = seededRandom() * size;
+    ctx.globalAlpha = 0.2 + seededRandom() * 0.15;
+    ctx.fillStyle = '#3a5a1a';
+    ctx.beginPath();
+    ctx.arc(x, y, 1 + seededRandom() * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Bright yellow-green highlights
+  const highlightColors = ['#e8ffa0', '#f0f060', '#ffe850', '#f8f080', '#e0e040'];
+  for (let i = 0; i < 500; i++) {
+    const x = seededRandom() * size;
+    const y = seededRandom() * size;
+    ctx.globalAlpha = 0.3 + seededRandom() * 0.25;
+    ctx.fillStyle = highlightColors[Math.floor(seededRandom() * highlightColors.length)];
+    ctx.beginPath();
+    ctx.arc(x, y, 0.5 + seededRandom() * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Scattered flower-like spots — coral, pink, yellow
+  const flowerSpots = [
+    '#ff7f6a', '#ff6b5a', '#e86050',           // coral
+    '#ff90b0', '#ffa0c0', '#ff78a8', '#e870a0', // pink
+    '#ffe040', '#ffd030', '#ffea60', '#f0d020',  // yellow
+  ];
+  for (let i = 0; i < 350; i++) {
+    const x = seededRandom() * size;
+    const y = seededRandom() * size;
+    const r = 1 + seededRandom() * 2.5;
+    ctx.globalAlpha = 0.5 + seededRandom() * 0.35;
+    ctx.fillStyle = flowerSpots[Math.floor(seededRandom() * flowerSpots.length)];
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.globalAlpha = 1;
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(10, 10);
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
 }
 
 function createTerrain() {
@@ -236,7 +359,11 @@ function createTerrain() {
     pos.setY(i, getHeightAt(pos.getX(i), pos.getZ(i)));
   }
   geo.computeVertexNormals();
-  terrainMat = new THREE.MeshLambertMaterial({ color: params.groundColor });
+  const groundTex = createGroundTexture();
+  terrainMat = new THREE.MeshLambertMaterial({
+    color: params.groundColor,
+    map: groundTex,
+  });
   scene.add(new THREE.Mesh(geo, terrainMat));
 }
 
@@ -294,6 +421,10 @@ function createGrass() {
       uTipColor: { value: new THREE.Color(params.grassTipColor) },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
+      uLightDir: { value: SUN_DIR },
+      uCelBands: { value: params.celBands },
+      uCelSoftness: { value: params.celSoftness },
+      uAmbientStrength: { value: params.ambientStrength },
     },
     side: THREE.DoubleSide,
   });
@@ -382,6 +513,10 @@ function createPatchGrass() {
       uTipColor: { value: new THREE.Color(params.patchTipColor) },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
+      uLightDir: { value: SUN_DIR },
+      uCelBands: { value: params.celBands },
+      uCelSoftness: { value: params.celSoftness },
+      uAmbientStrength: { value: params.ambientStrength },
     },
     side: THREE.DoubleSide,
   });
@@ -555,6 +690,10 @@ function makeStemGroup(offsets, stemHeights, phases, stemThicknesses, stemCurves
       uStemTip: { value: tipColor },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
+      uLightDir: { value: SUN_DIR },
+      uCelBands: { value: params.celBands },
+      uCelSoftness: { value: params.celSoftness },
+      uAmbientStrength: { value: params.ambientStrength },
     },
     side: THREE.DoubleSide,
   });
@@ -569,6 +708,7 @@ function makeFlowerGroup(baseGeo, headOffsets, scales, phases, rotYs, petalColor
   const geo = new THREE.InstancedBufferGeometry();
   geo.index = baseGeo.index;
   geo.setAttribute('position', baseGeo.getAttribute('position'));
+  geo.setAttribute('normal', baseGeo.getAttribute('normal'));
   geo.setAttribute('petalDist', baseGeo.getAttribute('petalDist'));
   geo.setAttribute('offset', new THREE.InstancedBufferAttribute(headOffsets, 3));
   geo.setAttribute('flowerScale', new THREE.InstancedBufferAttribute(scales, 1));
@@ -584,6 +724,10 @@ function makeFlowerGroup(baseGeo, headOffsets, scales, phases, rotYs, petalColor
       uCenterColor: { value: centerCol },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
+      uLightDir: { value: SUN_DIR },
+      uCelBands: { value: params.celBands },
+      uCelSoftness: { value: params.celSoftness },
+      uAmbientStrength: { value: params.ambientStrength },
     },
     side: THREE.DoubleSide,
   });
@@ -947,12 +1091,16 @@ function rebuildFlowers() {
 
 // ─── Lighting ────────────────────────────────────────────
 function setupLighting() {
-  scene.add(new THREE.AmbientLight(0xffe4c4, 0.6));
+  const ambient = new THREE.AmbientLight(0xffe4c4, 0.6);
+  ambient.layers.enableAll();
+  scene.add(ambient);
   const sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
   sun.position.set(30, 40, 20);
+  sun.layers.enableAll();
   scene.add(sun);
   const fill = new THREE.DirectionalLight(0xffd4a0, 0.3);
   fill.position.set(-20, 10, -30);
+  fill.layers.enableAll();
   scene.add(fill);
 }
 
@@ -1041,9 +1189,14 @@ function updateMovement(dt) {
 }
 
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(w, h);
+  const pr = renderer.getPixelRatio();
+  composer.setSize(w * pr, h * pr);
+  ghibliPass.uniforms.uResolution.value.set(w * pr, h * pr);
 });
 
 // ─── Helpers: update uniforms across all flower materials ─
@@ -1065,6 +1218,14 @@ function setWindOnAll(v) {
   if (bundleFlowerMat) bundleFlowerMat.uniforms.uWindStrength.value = v;
   if (clusterStemMat) clusterStemMat.uniforms.uWindStrength.value = v;
   if (clusterFlowerMat) clusterFlowerMat.uniforms.uWindStrength.value = v;
+}
+
+function setCelUniformOnAll(name, value) {
+  const mats = [grassMat, patchGrassMat, singleStemMat, singleFlowerMat,
+                bundleStemMat, bundleFlowerMat, clusterStemMat, clusterFlowerMat];
+  for (const m of mats) {
+    if (m && m.uniforms[name]) m.uniforms[name].value = value;
+  }
 }
 
 // ─── GUI ─────────────────────────────────────────────────
@@ -1126,6 +1287,9 @@ function setupGUI() {
         }
       }
       if (terrainMat) terrainMat.color.set(params.groundColor);
+      setCelUniformOnAll('uCelBands', params.celBands);
+      setCelUniformOnAll('uCelSoftness', params.celSoftness);
+      setCelUniformOnAll('uAmbientStrength', params.ambientStrength);
       scheduleRebuild();
     }
   });
@@ -1282,6 +1446,29 @@ function setupGUI() {
     if (terrainMat) terrainMat.color.set(params.groundColor);
   });
 
+  // ── Style (Ghibli post-processing + cel-shading) ──
+  const style = gui.addFolder('Style');
+  const gu = ghibliPass.uniforms;
+  style.add(gu.uOutlineStrength,  'value', 0, 1, 0.01).name('Outline Strength');
+  style.add(gu.uOutlineThickness, 'value', 0.5, 3, 0.1).name('Outline Thickness');
+  style.add(gu.uColorSteps,       'value', 4, 32, 1).name('Color Steps');
+  style.add(gu.uQuantizeStrength,  'value', 0, 0.5, 0.01).name('Quantize');
+  style.add(gu.uWarmth,           'value', 0, 1, 0.01).name('Warmth');
+  style.add(gu.uSaturation,       'value', 0.5, 1.5, 0.01).name('Saturation');
+  style.add(gu.uHazeStrength,     'value', 0, 0.5, 0.01).name('Haze');
+  style.add(params, 'celBands', 2, 8, 1).name('Cel Bands').onChange(v => {
+    setCelUniformOnAll('uCelBands', v);
+    network.sendParams(params);
+  });
+  style.add(params, 'celSoftness', 0.01, 0.3, 0.01).name('Cel Softness').onChange(v => {
+    setCelUniformOnAll('uCelSoftness', v);
+    network.sendParams(params);
+  });
+  style.add(params, 'ambientStrength', 0.1, 0.8, 0.01).name('Ambient').onChange(v => {
+    setCelUniformOnAll('uAmbientStrength', v);
+    network.sendParams(params);
+  });
+
   single.open();
   bundle.open();
   cluster.open();
@@ -1313,12 +1500,44 @@ function applyRemoteParams(remoteParams) {
   if (singleFlowerMat) singleFlowerMat.uniforms.uCenterColor.value.set(params.centerColor);
   if (bundleFlowerMat) bundleFlowerMat.uniforms.uCenterColor.value.set(params.bundleCenterColor);
   if (clusterFlowerMat) clusterFlowerMat.uniforms.uCenterColor.value.set(params.clusterCenterColor);
+  setCelUniformOnAll('uCelBands', params.celBands);
+  setCelUniformOnAll('uCelSoftness', params.celSoftness);
+  setCelUniformOnAll('uAmbientStrength', params.ambientStrength);
   if (gui) gui.controllersRecursive().forEach((c) => c.updateDisplay());
 }
 
-// ─── Init (deferred until server sends seed) ─────────────
-createTerrain();
+// ─── GLB Model ──────────────────────────────────────────
+function loadCottage() {
+  const loader = new GLTFLoader();
+  loader.load('/cottage.glb', (gltf) => {
+    const model = gltf.scene;
+    const cx = 3, cz = -3;
+    const cy = getHeightAt(cx, cz);
+    model.position.set(cx, cy + 4.75, cz);
+    model.scale.setScalar(8.0);
+
+    // Brighten and saturate GLB materials to match the scene style
+    model.traverse((child) => {
+      if (child.isMesh && child.material) {
+        const mat = child.material;
+        if (mat.color) {
+          const hsl = {};
+          mat.color.getHSL(hsl);
+          mat.color.setHSL(hsl.h, Math.min(hsl.s * 2.0, 1.0), Math.min(hsl.l * 2.0, 1.0));
+        }
+        mat.emissive?.setScalar(0.3);
+      }
+    });
+
+    scene.add(model);
+  }, undefined, (err) => {
+    console.warn('Cottage model failed to load:', err);
+  });
+}
+
+// ─── Init ────────────────────────────────────────────────
 setupLighting();
+loadCottage();
 
 network.connect({
   onInit({ seed, params: serverParams, players, presets: serverPresets }) {
@@ -1342,6 +1561,8 @@ network.connect({
       Object.assign(params, activePreset);
     }
 
+    resetToSeed(seed);
+    createTerrain();
     if (terrainMat) terrainMat.color.set(params.groundColor);
 
     resetToSeed(seed + 1);
@@ -1398,12 +1619,13 @@ network.connect({
   },
 });
 
-const clock = new THREE.Clock();
+const timer = new THREE.Timer();
 
 function animate() {
   requestAnimationFrame(animate);
-  const dt = clock.getDelta();
-  const t = clock.getElapsedTime();
+  timer.update();
+  const dt = timer.getDelta();
+  const t = timer.getElapsed();
 
   if (grassMat) grassMat.uniforms.uTime.value = t;
   if (patchGrassMat) patchGrassMat.uniforms.uTime.value = t;
@@ -1411,5 +1633,6 @@ function animate() {
 
   updateMovement(dt);
   playerManager.tick(dt);
-  renderer.render(scene, camera);
+
+  composer.render();
 }
