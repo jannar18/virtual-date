@@ -13,7 +13,6 @@ import stemFrag from './shaders/stem.frag.glsl';
 import flowerVert from './shaders/flower.vert.glsl';
 import flowerFrag from './shaders/flower.frag.glsl';
 import watercolorVert from './shaders/watercolor.vert.glsl';
-import watercolorFrag from './shaders/watercolor.frag.glsl';
 import ghibliFrag from './shaders/ghibli.frag.glsl';
 
 import { resetToSeed, seededRandom } from './lib/prng.js';
@@ -53,6 +52,7 @@ const PRESET_KEYS = [
   'grassBaseColor','grassTipColor','grassHeight',
   'patchBaseColor','patchTipColor','patchHeight','groundColor',
   'windStrength',
+  'celBands','celSoftness','ambientStrength',
 ];
 
 const PRESETS = {
@@ -200,6 +200,11 @@ const params = {
 
   // Wind
   windStrength: 0.83,
+
+  // Cel-shading
+  celBands: 3.0,
+  celSoftness: 0.08,
+  ambientStrength: 0.65,
 };
 
 // ─── Renderer ────────────────────────────────────────────
@@ -222,10 +227,11 @@ camera.position.set(0, 3, 0);
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
+const pixelRatio = renderer.getPixelRatio();
 const GhibliShader = {
   uniforms: {
     tDiffuse:           { value: null },
-    uResolution:        { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+    uResolution:        { value: new THREE.Vector2(window.innerWidth * pixelRatio, window.innerHeight * pixelRatio) },
     uOutlineStrength:   { value: 0.4 },
     uOutlineThickness:  { value: 1.0 },
     uColorSteps:        { value: 14.0 },
@@ -264,13 +270,13 @@ function createGroundTexture() {
 
   // Large soft blotches for color variation across the ground
   for (let i = 0; i < 30; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const r = 40 + Math.random() * 80;
-    ctx.globalAlpha = 0.15 + Math.random() * 0.15;
+    const x = seededRandom() * size;
+    const y = seededRandom() * size;
+    const r = 40 + seededRandom() * 80;
+    ctx.globalAlpha = 0.15 + seededRandom() * 0.15;
     const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
     const hues = ['#b8d888', '#d8e8a0', '#e8e070', '#f0e860'];
-    const hue = hues[Math.floor(Math.random() * hues.length)];
+    const hue = hues[Math.floor(seededRandom() * hues.length)];
     grad.addColorStop(0, hue);
     grad.addColorStop(1, 'transparent');
     ctx.fillStyle = grad;
@@ -281,13 +287,13 @@ function createGroundTexture() {
   const bladeColors = ['#6a9840', '#88b858', '#a0c868', '#4a7828', '#78a848', '#c0d888', '#c8d050', '#d8e060', '#b0c040'];
   ctx.lineCap = 'round';
   for (let i = 0; i < 6000; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const len = 4 + Math.random() * 12;
-    const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.0;
-    ctx.globalAlpha = 0.4 + Math.random() * 0.4;
-    ctx.strokeStyle = bladeColors[Math.floor(Math.random() * bladeColors.length)];
-    ctx.lineWidth = 1 + Math.random() * 2;
+    const x = seededRandom() * size;
+    const y = seededRandom() * size;
+    const len = 4 + seededRandom() * 12;
+    const angle = -Math.PI / 2 + (seededRandom() - 0.5) * 1.0;
+    ctx.globalAlpha = 0.4 + seededRandom() * 0.4;
+    ctx.strokeStyle = bladeColors[Math.floor(seededRandom() * bladeColors.length)];
+    ctx.lineWidth = 1 + seededRandom() * 2;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len);
@@ -296,24 +302,24 @@ function createGroundTexture() {
 
   // Small dark clumps for depth
   for (let i = 0; i < 400; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    ctx.globalAlpha = 0.2 + Math.random() * 0.15;
+    const x = seededRandom() * size;
+    const y = seededRandom() * size;
+    ctx.globalAlpha = 0.2 + seededRandom() * 0.15;
     ctx.fillStyle = '#3a5a1a';
     ctx.beginPath();
-    ctx.arc(x, y, 1 + Math.random() * 3, 0, Math.PI * 2);
+    ctx.arc(x, y, 1 + seededRandom() * 3, 0, Math.PI * 2);
     ctx.fill();
   }
 
   // Bright yellow-green highlights
   const highlightColors = ['#e8ffa0', '#f0f060', '#ffe850', '#f8f080', '#e0e040'];
   for (let i = 0; i < 500; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    ctx.globalAlpha = 0.3 + Math.random() * 0.25;
-    ctx.fillStyle = highlightColors[Math.floor(Math.random() * highlightColors.length)];
+    const x = seededRandom() * size;
+    const y = seededRandom() * size;
+    ctx.globalAlpha = 0.3 + seededRandom() * 0.25;
+    ctx.fillStyle = highlightColors[Math.floor(seededRandom() * highlightColors.length)];
     ctx.beginPath();
-    ctx.arc(x, y, 0.5 + Math.random() * 3, 0, Math.PI * 2);
+    ctx.arc(x, y, 0.5 + seededRandom() * 3, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -324,11 +330,11 @@ function createGroundTexture() {
     '#ffe040', '#ffd030', '#ffea60', '#f0d020',  // yellow
   ];
   for (let i = 0; i < 350; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const r = 1 + Math.random() * 2.5;
-    ctx.globalAlpha = 0.5 + Math.random() * 0.35;
-    ctx.fillStyle = flowerSpots[Math.floor(Math.random() * flowerSpots.length)];
+    const x = seededRandom() * size;
+    const y = seededRandom() * size;
+    const r = 1 + seededRandom() * 2.5;
+    ctx.globalAlpha = 0.5 + seededRandom() * 0.35;
+    ctx.fillStyle = flowerSpots[Math.floor(seededRandom() * flowerSpots.length)];
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
@@ -416,9 +422,9 @@ function createGrass() {
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
       uLightDir: { value: SUN_DIR },
-      uCelBands: { value: 3.0 },
-      uCelSoftness: { value: 0.08 },
-      uAmbientStrength: { value: 0.65 },
+      uCelBands: { value: params.celBands },
+      uCelSoftness: { value: params.celSoftness },
+      uAmbientStrength: { value: params.ambientStrength },
     },
     side: THREE.DoubleSide,
   });
@@ -508,9 +514,9 @@ function createPatchGrass() {
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
       uLightDir: { value: SUN_DIR },
-      uCelBands: { value: 3.0 },
-      uCelSoftness: { value: 0.08 },
-      uAmbientStrength: { value: 0.65 },
+      uCelBands: { value: params.celBands },
+      uCelSoftness: { value: params.celSoftness },
+      uAmbientStrength: { value: params.ambientStrength },
     },
     side: THREE.DoubleSide,
   });
@@ -685,9 +691,9 @@ function makeStemGroup(offsets, stemHeights, phases, stemThicknesses, stemCurves
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
       uLightDir: { value: SUN_DIR },
-      uCelBands: { value: 3.0 },
-      uCelSoftness: { value: 0.08 },
-      uAmbientStrength: { value: 0.65 },
+      uCelBands: { value: params.celBands },
+      uCelSoftness: { value: params.celSoftness },
+      uAmbientStrength: { value: params.ambientStrength },
     },
     side: THREE.DoubleSide,
   });
@@ -719,9 +725,9 @@ function makeFlowerGroup(baseGeo, headOffsets, scales, phases, rotYs, petalColor
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
       uLightDir: { value: SUN_DIR },
-      uCelBands: { value: 3.0 },
-      uCelSoftness: { value: 0.08 },
-      uAmbientStrength: { value: 0.65 },
+      uCelBands: { value: params.celBands },
+      uCelSoftness: { value: params.celSoftness },
+      uAmbientStrength: { value: params.ambientStrength },
     },
     side: THREE.DoubleSide,
   });
@@ -1188,8 +1194,9 @@ window.addEventListener('resize', () => {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
-  composer.setSize(w, h);
-  ghibliPass.uniforms.uResolution.value.set(w, h);
+  const pr = renderer.getPixelRatio();
+  composer.setSize(w * pr, h * pr);
+  ghibliPass.uniforms.uResolution.value.set(w * pr, h * pr);
 });
 
 // ─── Helpers: update uniforms across all flower materials ─
@@ -1280,6 +1287,9 @@ function setupGUI() {
         }
       }
       if (terrainMat) terrainMat.color.set(params.groundColor);
+      setCelUniformOnAll('uCelBands', params.celBands);
+      setCelUniformOnAll('uCelSoftness', params.celSoftness);
+      setCelUniformOnAll('uAmbientStrength', params.ambientStrength);
       scheduleRebuild();
     }
   });
@@ -1446,12 +1456,18 @@ function setupGUI() {
   style.add(gu.uWarmth,           'value', 0, 1, 0.01).name('Warmth');
   style.add(gu.uSaturation,       'value', 0.5, 1.5, 0.01).name('Saturation');
   style.add(gu.uHazeStrength,     'value', 0, 0.5, 0.01).name('Haze');
-  const celBandsCtrl = { celBands: 3.0 };
-  style.add(celBandsCtrl, 'celBands', 2, 8, 1).name('Cel Bands').onChange(v => setCelUniformOnAll('uCelBands', v));
-  const celSoftCtrl = { celSoftness: 0.08 };
-  style.add(celSoftCtrl, 'celSoftness', 0.01, 0.3, 0.01).name('Cel Softness').onChange(v => setCelUniformOnAll('uCelSoftness', v));
-  const ambientCtrl = { ambient: 0.45 };
-  style.add(ambientCtrl, 'ambient', 0.1, 0.8, 0.01).name('Ambient').onChange(v => setCelUniformOnAll('uAmbientStrength', v));
+  style.add(params, 'celBands', 2, 8, 1).name('Cel Bands').onChange(v => {
+    setCelUniformOnAll('uCelBands', v);
+    network.sendParams(params);
+  });
+  style.add(params, 'celSoftness', 0.01, 0.3, 0.01).name('Cel Softness').onChange(v => {
+    setCelUniformOnAll('uCelSoftness', v);
+    network.sendParams(params);
+  });
+  style.add(params, 'ambientStrength', 0.1, 0.8, 0.01).name('Ambient').onChange(v => {
+    setCelUniformOnAll('uAmbientStrength', v);
+    network.sendParams(params);
+  });
 
   single.open();
   bundle.open();
@@ -1484,6 +1500,9 @@ function applyRemoteParams(remoteParams) {
   if (singleFlowerMat) singleFlowerMat.uniforms.uCenterColor.value.set(params.centerColor);
   if (bundleFlowerMat) bundleFlowerMat.uniforms.uCenterColor.value.set(params.bundleCenterColor);
   if (clusterFlowerMat) clusterFlowerMat.uniforms.uCenterColor.value.set(params.clusterCenterColor);
+  setCelUniformOnAll('uCelBands', params.celBands);
+  setCelUniformOnAll('uCelSoftness', params.celSoftness);
+  setCelUniformOnAll('uAmbientStrength', params.ambientStrength);
   if (gui) gui.controllersRecursive().forEach((c) => c.updateDisplay());
 }
 
@@ -1504,18 +1523,19 @@ function loadCottage() {
         if (mat.color) {
           const hsl = {};
           mat.color.getHSL(hsl);
-          mat.color.setHSL(hsl.h, Math.min(hsl.s * 5.0, 1.0), Math.min(hsl.l * 5.0, 1.0));
+          mat.color.setHSL(hsl.h, Math.min(hsl.s * 2.0, 1.0), Math.min(hsl.l * 2.0, 1.0));
         }
         mat.emissive?.setScalar(0.3);
       }
     });
 
     scene.add(model);
+  }, undefined, (err) => {
+    console.warn('Cottage model failed to load:', err);
   });
 }
 
-// ─── Init (deferred until server sends seed) ─────────────
-createTerrain();
+// ─── Init ────────────────────────────────────────────────
 setupLighting();
 loadCottage();
 
@@ -1541,6 +1561,8 @@ network.connect({
       Object.assign(params, activePreset);
     }
 
+    resetToSeed(seed);
+    createTerrain();
     if (terrainMat) terrainMat.color.set(params.groundColor);
 
     resetToSeed(seed + 1);
