@@ -1,15 +1,14 @@
 uniform float uFogNear;
 uniform float uFogFar;
 uniform vec3 uFogColor;
+uniform vec3 uStemBase;
+uniform vec3 uStemTip;
 
 varying float vHeight;
 varying vec3 vWorldPos;
 
 void main() {
-  // Dark green at base, lighter at top
-  vec3 baseCol = vec3(0.15, 0.35, 0.1);
-  vec3 tipCol  = vec3(0.25, 0.50, 0.15);
-  vec3 color = mix(baseCol, tipCol, vHeight);
+  vec3 color = mix(uStemBase, uStemTip, vHeight);
 
   // Distance fog
   float depth = gl_FragCoord.z / gl_FragCoord.w;

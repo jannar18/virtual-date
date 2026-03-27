@@ -34,6 +34,10 @@ const PRESET_KEYS = [
   'stemHeightMin','stemHeightMax',
   'primaryColor','secondaryColor','centerColor',
   'bundleColor','bundleCenterColor',
+  'singleStemBaseColor','singleStemTipColor',
+  'bundleStemBaseColor','bundleStemTipColor',
+  'grassBaseColor','grassTipColor','grassHeight',
+  'patchBaseColor','patchTipColor','patchHeight','groundColor',
   'windStrength',
 ];
 
@@ -46,10 +50,15 @@ const PRESETS = {
     bundleStemThickness: 0.5, bundleStemCurve: 0.35, bundleStemHeightMult: 2.0,
     bundlePetalCount: 4, bundlePetalLength: 0.1, bundlePetalWidth: 1.1,
     bundleBellWidth: 0.2, bundleBellFlare: 0.05, bundlePetalTilt: 1.0, bundleCenterSize: 0.02,
-    scaleMin: 0.1, scaleMax: 0.6, stemHeightMin: 0.1, stemHeightMax: 0.75,
+    scaleMin: 0.1, scaleMax: 0.5, stemHeightMin: 0.1, stemHeightMax: 0.6,
     flowerCount: 10000, bundleRatio: 0.45, windStrength: 0.83,
     primaryColor: '#ffebfc', secondaryColor: '#ffda8a', centerColor: '#fff3a0',
     bundleColor: '#ffaf94', bundleCenterColor: '#ffe4a0',
+    singleStemBaseColor: '#99bf80', singleStemTipColor: '#99bf80',
+    bundleStemBaseColor: '#a6c7ae', bundleStemTipColor: '#a6c7ae',
+    grassBaseColor: '#d8d97d', grassTipColor: '#f7ffb8', grassHeight: 0.7,
+    patchBaseColor: '#9ed963', patchTipColor: '#e6e882', patchHeight: 0.7,
+    groundColor: '#feffbd',
   },
   Daisy:       { petalCount: 8,  petalLength: 0.5,  petalWidth: 0.55, centerSize: 0.12, singlePetalTilt: 0.0,  singleBellWidth: 0.25, singleBellFlare: 0.0 },
   Poppy:       { petalCount: 4,  petalLength: 0.55, petalWidth: 0.85, centerSize: 0.08, singlePetalTilt: 0.15, singleBellWidth: 0.28, singleBellFlare: 0.04 },
@@ -93,11 +102,11 @@ const params = {
 
   // Scale & field
   scaleMin: 0.1,
-  scaleMax: 0.6,
+  scaleMax: 0.5,
   flowerCount: 10000,
   bundleRatio: 0.45,
   stemHeightMin: 0.1,
-  stemHeightMax: 0.75,
+  stemHeightMax: 0.6,
 
   // Colors — singles
   primaryColor: '#ffebfc',
@@ -107,6 +116,21 @@ const params = {
   // Colors — bundles (coral)
   bundleColor: '#ffaf94',
   bundleCenterColor: '#ffe4a0',
+
+  // Stems
+  singleStemBaseColor: '#99bf80',
+  singleStemTipColor: '#99bf80',
+  bundleStemBaseColor: '#a6c7ae',
+  bundleStemTipColor: '#a6c7ae',
+
+  // Grass
+  grassBaseColor: '#d8d97d',
+  grassTipColor: '#f7ffb8',
+  grassHeight: 0.7,
+  patchBaseColor: '#9ed963',
+  patchTipColor: '#e6e882',
+  patchHeight: 0.7,
+  groundColor: '#feffbd',
 
   // Wind
   windStrength: 0.83,
@@ -145,7 +169,8 @@ function createTerrain() {
     pos.setY(i, getHeightAt(pos.getX(i), pos.getZ(i)));
   }
   geo.computeVertexNormals();
-  scene.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x4a7a3d })));
+  terrainMat = new THREE.MeshLambertMaterial({ color: params.groundColor });
+  scene.add(new THREE.Mesh(geo, terrainMat));
 }
 
 // ─── Grass ───────────────────────────────────────────────
@@ -162,6 +187,8 @@ function createGrassBlade() {
 }
 
 let grassMat = null;
+let patchGrassMat = null;
+let terrainMat = null;
 
 function createGrass() {
   const base = createGrassBlade();
@@ -191,8 +218,9 @@ function createGrass() {
     vertexShader: grassVert, fragmentShader: grassFrag,
     uniforms: {
       uTime: { value: 0 }, uWindStrength: { value: 0.6 },
-      uBaseColor: { value: new THREE.Color(0x2d5a1e) },
-      uTipColor: { value: new THREE.Color(0x7cb342) },
+      uHeightScale: { value: params.grassHeight },
+      uBaseColor: { value: new THREE.Color(params.grassBaseColor) },
+      uTipColor: { value: new THREE.Color(params.grassTipColor) },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
     },
@@ -203,6 +231,90 @@ function createGrass() {
   mesh.frustumCulled = false;
   scene.add(mesh);
   grassMat = mat;
+}
+
+// ─── Patch Grass (weed clumps) ──────────────────────────
+const PATCH_GRASS_COUNT = 15000;
+const PATCH_CELL_SIZE = 4;
+
+function createPatchBlade() {
+  // Wider, shorter blade for weeds
+  const verts = new Float32Array([
+    -0.07, 0, 0,  0.07, 0, 0,
+    -0.04, 0.35, 0,  0.04, 0.35, 0,
+    0.0, 0.6, 0,
+  ]);
+  const base = new THREE.BufferGeometry();
+  base.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+  base.setIndex([0, 1, 2, 2, 1, 3, 2, 3, 4]);
+  return base;
+}
+
+function isPatchCell(cx, cz, seed) {
+  // Simple spatial hash — deterministically pick ~20% of cells as patch zones
+  let h = (cx * 73856093) ^ (cz * 19349663) ^ (seed * 83492791);
+  h = ((h >>> 0) % 100);
+  return h < 20;
+}
+
+function createPatchGrass() {
+  const base = createPatchBlade();
+  const geo = new THREE.InstancedBufferGeometry();
+  geo.index = base.index;
+  geo.setAttribute('position', base.getAttribute('position'));
+
+  const offsets = new Float32Array(PATCH_GRASS_COUNT * 3);
+  const scales = new Float32Array(PATCH_GRASS_COUNT);
+  const phases = new Float32Array(PATCH_GRASS_COUNT);
+
+  let placed = 0;
+  let attempts = 0;
+  const maxAttempts = PATCH_GRASS_COUNT * 8;
+
+  while (placed < PATCH_GRASS_COUNT && attempts < maxAttempts) {
+    attempts++;
+    const x = (seededRandom() - 0.5) * FIELD_SIZE;
+    const z = (seededRandom() - 0.5) * FIELD_SIZE;
+
+    const cx = Math.floor(x / PATCH_CELL_SIZE);
+    const cz = Math.floor(z / PATCH_CELL_SIZE);
+
+    if (!isPatchCell(cx, cz, _flowerSeed)) continue;
+
+    offsets[placed * 3] = x;
+    offsets[placed * 3 + 1] = getHeightAt(x, z);
+    offsets[placed * 3 + 2] = z;
+    scales[placed] = 0.5 + seededRandom() * 0.6;
+    phases[placed] = seededRandom() * Math.PI * 2;
+    placed++;
+  }
+
+  // Trim to actual placed count
+  const trimOff = offsets.subarray(0, placed * 3);
+  const trimSc = scales.subarray(0, placed);
+  const trimPh = phases.subarray(0, placed);
+
+  geo.setAttribute('offset', new THREE.InstancedBufferAttribute(trimOff, 3));
+  geo.setAttribute('bladeScale', new THREE.InstancedBufferAttribute(trimSc, 1));
+  geo.setAttribute('phase', new THREE.InstancedBufferAttribute(trimPh, 1));
+
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: grassVert, fragmentShader: grassFrag,
+    uniforms: {
+      uTime: { value: 0 }, uWindStrength: { value: 0.6 },
+      uHeightScale: { value: params.patchHeight },
+      uBaseColor: { value: new THREE.Color(params.patchBaseColor) },
+      uTipColor: { value: new THREE.Color(params.patchTipColor) },
+      uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
+      uFogColor: { value: FOG_COLOR },
+    },
+    side: THREE.DoubleSide,
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+  patchGrassMat = mat;
 }
 
 // ─── Shared flower geometry builder ──────────────────────
@@ -328,7 +440,7 @@ function cleanupMeshAndMat(mesh, mat) {
   if (mat) mat.dispose();
 }
 
-function makeStemGroup(offsets, stemHeights, phases, stemThicknesses, stemCurves) {
+function makeStemGroup(offsets, stemHeights, phases, stemThicknesses, stemCurves, baseColor, tipColor) {
   const stemBase = createGrassBlade();
   const geo = new THREE.InstancedBufferGeometry();
   geo.index = stemBase.index;
@@ -343,6 +455,8 @@ function makeStemGroup(offsets, stemHeights, phases, stemThicknesses, stemCurves
     vertexShader: stemVert, fragmentShader: stemFrag,
     uniforms: {
       uTime: { value: 0 }, uWindStrength: { value: params.windStrength },
+      uStemBase: { value: baseColor },
+      uStemTip: { value: tipColor },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
     },
@@ -505,7 +619,8 @@ function rebuildFlowers() {
     const sGeo = buildFlowerGeometry(params);
     const stem = makeStemGroup(
       sStOffsets.subarray(0, ssi * 3), sStHeights.subarray(0, ssi),
-      sStPhases.subarray(0, ssi), sStThick.subarray(0, ssi), sStCurve.subarray(0, ssi));
+      sStPhases.subarray(0, ssi), sStThick.subarray(0, ssi), sStCurve.subarray(0, ssi),
+      new THREE.Color(params.singleStemBaseColor), new THREE.Color(params.singleStemTipColor));
     singleStemMesh = stem.mesh;
     singleStemMat = stem.mat;
     const flower = makeFlowerGroup(sGeo,
@@ -599,7 +714,8 @@ function rebuildFlowers() {
     const bGeo = buildBellFlowerGeometry(params);
     const stem = makeStemGroup(
       bStOffsets.subarray(0, bsi * 3), bStHeights.subarray(0, bsi),
-      bStPhases.subarray(0, bsi), bStThick.subarray(0, bsi), bStCurve.subarray(0, bsi));
+      bStPhases.subarray(0, bsi), bStThick.subarray(0, bsi), bStCurve.subarray(0, bsi),
+      new THREE.Color(params.bundleStemBaseColor), new THREE.Color(params.bundleStemTipColor));
     bundleStemMesh = stem.mesh;
     bundleStemMat = stem.mat;
     const flower = makeFlowerGroup(bGeo,
@@ -723,6 +839,7 @@ function setTimeOnAll(t) {
 
 function setWindOnAll(v) {
   if (grassMat) grassMat.uniforms.uWindStrength.value = v;
+  if (patchGrassMat) patchGrassMat.uniforms.uWindStrength.value = v;
   if (singleStemMat) singleStemMat.uniforms.uWindStrength.value = v;
   if (singleFlowerMat) singleFlowerMat.uniforms.uWindStrength.value = v;
   if (bundleStemMat) bundleStemMat.uniforms.uWindStrength.value = v;
@@ -767,6 +884,17 @@ function setupGUI() {
     if (p) {
       Object.assign(params, p);
       gui.controllersRecursive().forEach((c) => c.updateDisplay());
+      if (grassMat) {
+        grassMat.uniforms.uBaseColor.value.set(params.grassBaseColor);
+        grassMat.uniforms.uTipColor.value.set(params.grassTipColor);
+        grassMat.uniforms.uHeightScale.value = params.grassHeight;
+      }
+      if (patchGrassMat) {
+        patchGrassMat.uniforms.uBaseColor.value.set(params.patchBaseColor);
+        patchGrassMat.uniforms.uTipColor.value.set(params.patchTipColor);
+        patchGrassMat.uniforms.uHeightScale.value = params.patchHeight;
+      }
+      if (terrainMat) terrainMat.color.set(params.groundColor);
       scheduleRebuild();
     }
   });
@@ -852,8 +980,42 @@ function setupGUI() {
   colors.addColor(params, 'primaryColor').name('Single 1').onChange(scheduleRebuild);
   colors.addColor(params, 'secondaryColor').name('Single 2').onChange(scheduleRebuild);
   colors.addColor(params, 'centerColor').name('Single Center').onChange(updateSingleCenterColor);
+  colors.addColor(params, 'singleStemBaseColor').name('Stem Base').onChange(scheduleRebuild);
+  colors.addColor(params, 'singleStemTipColor').name('Stem Tip').onChange(scheduleRebuild);
   colors.addColor(params, 'bundleColor').name('Bundle').onChange(scheduleRebuild);
   colors.addColor(params, 'bundleCenterColor').name('Bundle Center').onChange(updateBundleCenterColor);
+  colors.addColor(params, 'bundleStemBaseColor').name('Bndl Stem Base').onChange(scheduleRebuild);
+  colors.addColor(params, 'bundleStemTipColor').name('Bndl Stem Tip').onChange(scheduleRebuild);
+
+  // ── Grass ──
+  function updateGrassColors() {
+    if (grassMat) {
+      grassMat.uniforms.uBaseColor.value.set(params.grassBaseColor);
+      grassMat.uniforms.uTipColor.value.set(params.grassTipColor);
+    }
+  }
+  function updatePatchColors() {
+    if (patchGrassMat) {
+      patchGrassMat.uniforms.uBaseColor.value.set(params.patchBaseColor);
+      patchGrassMat.uniforms.uTipColor.value.set(params.patchTipColor);
+    }
+  }
+  function updateGrassHeight() {
+    if (grassMat) grassMat.uniforms.uHeightScale.value = params.grassHeight;
+  }
+  function updatePatchHeight() {
+    if (patchGrassMat) patchGrassMat.uniforms.uHeightScale.value = params.patchHeight;
+  }
+  const grass = gui.addFolder('Grass');
+  grass.addColor(params, 'grassBaseColor').name('Base').onChange(updateGrassColors);
+  grass.addColor(params, 'grassTipColor').name('Tip').onChange(updateGrassColors);
+  grass.add(params, 'grassHeight', 0.2, 3.0, 0.05).name('Height').onChange(updateGrassHeight);
+  grass.addColor(params, 'patchBaseColor').name('Patch Base').onChange(updatePatchColors);
+  grass.addColor(params, 'patchTipColor').name('Patch Tip').onChange(updatePatchColors);
+  grass.add(params, 'patchHeight', 0.2, 3.0, 0.05).name('Patch Height').onChange(updatePatchHeight);
+  grass.addColor(params, 'groundColor').name('Ground').onChange(() => {
+    if (terrainMat) terrainMat.color.set(params.groundColor);
+  });
 
   // ── Field ──
   const field = gui.addFolder('Field');
@@ -874,6 +1036,17 @@ function applyRemoteParams(remoteParams) {
   Object.assign(params, remoteParams);
   rebuildFlowers();
   setWindOnAll(params.windStrength);
+  if (grassMat) {
+    grassMat.uniforms.uBaseColor.value.set(params.grassBaseColor);
+    grassMat.uniforms.uTipColor.value.set(params.grassTipColor);
+    grassMat.uniforms.uHeightScale.value = params.grassHeight;
+  }
+  if (patchGrassMat) {
+    patchGrassMat.uniforms.uBaseColor.value.set(params.patchBaseColor);
+    patchGrassMat.uniforms.uTipColor.value.set(params.patchTipColor);
+    patchGrassMat.uniforms.uHeightScale.value = params.patchHeight;
+  }
+  if (terrainMat) terrainMat.color.set(params.groundColor);
   if (singleFlowerMat) singleFlowerMat.uniforms.uCenterColor.value.set(params.centerColor);
   if (bundleFlowerMat) bundleFlowerMat.uniforms.uCenterColor.value.set(params.bundleCenterColor);
   if (gui) gui.controllersRecursive().forEach((c) => c.updateDisplay());
@@ -898,6 +1071,7 @@ network.connect({
 
     resetToSeed(seed + 1);
     createGrass();
+    createPatchGrass();
     rebuildFlowers();
 
     setupGUI();
@@ -957,6 +1131,7 @@ function animate() {
   const t = clock.getElapsedTime();
 
   if (grassMat) grassMat.uniforms.uTime.value = t;
+  if (patchGrassMat) patchGrassMat.uniforms.uTime.value = t;
   setTimeOnAll(t);
 
   updateMovement(dt);
