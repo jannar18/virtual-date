@@ -199,7 +199,7 @@ const params = {
   groundColor: '#d9ff42',
 
   // Wind
-  windStrength: 0.19,
+  windStrength: 0.6,
 
   // Cel-shading
   celBands: 3.0,
