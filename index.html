@@ -41,6 +41,85 @@
       opacity: 0;
       pointer-events: none;
     }
+    #loading-flower {
+      position: relative;
+      width: 80px;
+      height: 100px;
+      margin-bottom: 12px;
+      animation: flower-sway 3s ease-in-out infinite;
+      transform-origin: bottom center;
+    }
+    /* Stem */
+    #loading-flower .stem {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 3px;
+      height: 50px;
+      background: #5a9a48;
+      border-radius: 2px;
+      transform: translateX(-50%);
+    }
+    #loading-flower .leaf {
+      position: absolute;
+      bottom: 18px;
+      width: 14px;
+      height: 8px;
+      background: #6abf50;
+      border-radius: 50%;
+    }
+    #loading-flower .leaf.left {
+      left: 50%;
+      transform: translateX(-14px) rotate(-30deg);
+    }
+    #loading-flower .leaf.right {
+      left: 50%;
+      transform: translateX(2px) rotate(30deg);
+    }
+    /* Flower head */
+    #loading-flower .head {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 40px;
+      animation: flower-bloom 2s ease-out forwards;
+    }
+    #loading-flower .petal {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: #ffb7d5;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+    }
+    #loading-flower .petal:nth-child(1) { transform: translate(-50%, -50%) translateY(-10px); background: #ffcce0; }
+    #loading-flower .petal:nth-child(2) { transform: translate(-50%, -50%) rotate(72deg) translateY(-10px); background: #ffc0d6; }
+    #loading-flower .petal:nth-child(3) { transform: translate(-50%, -50%) rotate(144deg) translateY(-10px); background: #ffd6e8; }
+    #loading-flower .petal:nth-child(4) { transform: translate(-50%, -50%) rotate(216deg) translateY(-10px); background: #ffb7d5; }
+    #loading-flower .petal:nth-child(5) { transform: translate(-50%, -50%) rotate(288deg) translateY(-10px); background: #ffcce0; }
+    #loading-flower .center {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #ffe570;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 6px rgba(255, 229, 112, 0.5);
+    }
+    @keyframes flower-sway {
+      0%, 100% { transform: rotate(-3deg); }
+      50% { transform: rotate(3deg); }
+    }
+    @keyframes flower-bloom {
+      0% { transform: translateX(-50%) scale(0); opacity: 0; }
+      50% { transform: translateX(-50%) scale(1.15); opacity: 1; }
+      100% { transform: translateX(-50%) scale(1); opacity: 1; }
+    }
     #loading-text {
       font-size: 1.4rem;
       letter-spacing: 0.05em;
@@ -153,6 +232,19 @@
 </head>
 <body>
   <div id="loading-screen">
+    <div id="loading-flower">
+      <div class="head">
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="center"></div>
+      </div>
+      <div class="stem"></div>
+      <div class="leaf left"></div>
+      <div class="leaf right"></div>
+    </div>
     <div id="loading-text">Loading meadow...</div>
     <div id="loading-bar-bg"><div id="loading-bar"></div></div>
   </div>
