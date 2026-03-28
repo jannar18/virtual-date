@@ -1116,8 +1116,8 @@ const overlay = document.getElementById('overlay');
 const isMobile = 'ontouchstart' in window && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 let mobileActive = false;
 
+overlay.textContent = isMobile ? 'Tap to enter the meadow' : 'Click to enter the meadow';
 if (isMobile) {
-  overlay.textContent = 'Tap to enter the meadow';
   overlay.addEventListener('click', () => {
     mobileActive = true;
     overlay.classList.add('hidden');
@@ -1684,37 +1684,65 @@ function applyRemoteParams(remoteParams) {
 }
 
 // ─── GLB Model ──────────────────────────────────────────
-function loadCottage() {
-  const loader = new GLTFLoader();
-  loader.load('/cottage.glb', (gltf) => {
-    const model = gltf.scene;
-    const cx = 3, cz = -3;
-    const cy = getHeightAt(cx, cz);
-    model.position.set(cx, cy + 5.25, cz);
-    model.scale.setScalar(8.0);
+function loadCottage(onProgress) {
+  return new Promise((resolve) => {
+    const loader = new GLTFLoader();
+    loader.load('/cottage.glb', (gltf) => {
+      const model = gltf.scene;
+      const cx = 3, cz = -3;
+      const cy = getHeightAt(cx, cz);
+      model.position.set(cx, cy + 5.25, cz);
+      model.scale.setScalar(8.0);
 
-    // Brighten and saturate GLB materials to match the scene style
-    model.traverse((child) => {
-      if (child.isMesh && child.material) {
-        const mat = child.material;
-        if (mat.color) {
-          const hsl = {};
-          mat.color.getHSL(hsl);
-          mat.color.setHSL(hsl.h, Math.min(hsl.s * 2.0, 1.0), Math.min(hsl.l * 2.0, 1.0));
+      // Brighten and saturate GLB materials to match the scene style
+      model.traverse((child) => {
+        if (child.isMesh && child.material) {
+          const mat = child.material;
+          if (mat.color) {
+            const hsl = {};
+            mat.color.getHSL(hsl);
+            mat.color.setHSL(hsl.h, Math.min(hsl.s * 2.0, 1.0), Math.min(hsl.l * 2.0, 1.0));
+          }
+          mat.emissive?.setScalar(0.3);
         }
-        mat.emissive?.setScalar(0.3);
-      }
-    });
+      });
 
-    scene.add(model);
-  }, undefined, (err) => {
-    console.warn('Cottage model failed to load:', err);
+      scene.add(model);
+      resolve();
+    }, (progress) => {
+      if (progress.lengthComputable && onProgress) {
+        onProgress(progress.loaded / progress.total);
+      }
+    }, (err) => {
+      console.warn('Cottage model failed to load:', err);
+      resolve(); // continue even if cottage fails
+    });
   });
 }
 
 // ─── Init ────────────────────────────────────────────────
 setupLighting();
-loadCottage();
+
+const loadingBar = document.getElementById('loading-bar');
+const loadingScreen = document.getElementById('loading-screen');
+
+const cottageReady = loadCottage((pct) => {
+  loadingBar.style.width = `${Math.round(pct * 100)}%`;
+});
+
+let networkInitData = null;
+const networkReady = new Promise((resolve) => {
+  networkInitData = { resolve };
+});
+
+// Once both cottage and network are ready, start the scene
+Promise.all([cottageReady, networkReady]).then(() => {
+  loadingBar.style.width = '100%';
+  setTimeout(() => {
+    loadingScreen.classList.add('hidden');
+    overlay.classList.remove('hidden');
+  }, 300);
+});
 
 network.connect({
   onInit({ seed, params: serverParams, players, presets: serverPresets }) {
@@ -1757,6 +1785,7 @@ network.connect({
     }
 
     animate();
+    networkInitData.resolve();
   },
   onPlayerJoin(id, x, y, z, yaw) {
     playerManager.add(id);
