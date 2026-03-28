@@ -1710,8 +1710,13 @@ function loadCottage(onProgress) {
       scene.add(model);
       resolve();
     }, (progress) => {
-      if (progress.lengthComputable && onProgress) {
-        onProgress(progress.loaded / progress.total);
+      if (onProgress) {
+        if (progress.lengthComputable) {
+          onProgress(progress.loaded / progress.total);
+        } else {
+          // Fallback: estimate against known ~87MB file size
+          onProgress(Math.min(progress.loaded / 87_000_000, 0.99));
+        }
       }
     }, (err) => {
       console.warn('Cottage model failed to load:', err);
@@ -1723,11 +1728,12 @@ function loadCottage(onProgress) {
 // ─── Init ────────────────────────────────────────────────
 setupLighting();
 
-const loadingBar = document.getElementById('loading-bar');
+const loadBlocks = document.querySelectorAll('.load-block');
 const loadingScreen = document.getElementById('loading-screen');
 
 const cottageReady = loadCottage((pct) => {
-  loadingBar.style.width = `${Math.round(pct * 100)}%`;
+  const filled = Math.round(pct * loadBlocks.length);
+  loadBlocks.forEach((b, i) => b.classList.toggle('filled', i < filled));
 });
 
 let networkInitData = null;
@@ -1737,7 +1743,7 @@ const networkReady = new Promise((resolve) => {
 
 // Once both cottage and network are ready, start the scene
 Promise.all([cottageReady, networkReady]).then(() => {
-  loadingBar.style.width = '100%';
+  loadBlocks.forEach((b) => b.classList.add('filled'));
   setTimeout(() => {
     loadingScreen.classList.add('hidden');
     overlay.classList.remove('hidden');

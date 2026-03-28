@@ -6,7 +6,7 @@
   <title>Flower Field</title>
   <style>
     * { margin: 0; padding: 0; }
-    body { overflow: hidden; background: #1a1a2e; }
+    body { overflow: hidden; background: #000; }
     canvas { display: block; }
     #overlay {
       position: fixed;
@@ -31,7 +31,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: #1a1a2e;
+      background: #000;
       color: #fff;
       font-family: Georgia, serif;
       z-index: 100;
@@ -127,17 +127,20 @@
     }
     #loading-bar-bg {
       width: 220px;
-      height: 6px;
-      background: rgba(255,255,255,0.15);
-      border-radius: 3px;
-      overflow: hidden;
+      height: 18px;
+      background: #222;
+      border: 2px solid #555;
+      display: flex;
+      gap: 2px;
+      padding: 2px;
     }
-    #loading-bar {
-      width: 0%;
+    .load-block {
+      flex: 1;
       height: 100%;
-      background: #87ceeb;
-      border-radius: 3px;
-      transition: width 0.3s;
+      background: #333;
+    }
+    .load-block.filled {
+      background: #5a9a48;
     }
 
     /* Chat */
@@ -246,7 +249,12 @@
       <div class="leaf right"></div>
     </div>
     <div id="loading-text">Loading meadow...</div>
-    <div id="loading-bar-bg"><div id="loading-bar"></div></div>
+    <div id="loading-bar-bg">
+      <div class="load-block"></div><div class="load-block"></div><div class="load-block"></div>
+      <div class="load-block"></div><div class="load-block"></div><div class="load-block"></div>
+      <div class="load-block"></div><div class="load-block"></div><div class="load-block"></div>
+      <div class="load-block"></div>
+    </div>
   </div>
   <div id="overlay" class="hidden"></div>
   <div id="mobile-joystick"><div id="mobile-joystick-knob"></div></div>
