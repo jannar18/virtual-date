@@ -68,7 +68,8 @@ export function createWSHandler(httpServer) {
     }));
 
     // Notify others
-    broadcast({ type: 'player-join', id }, ws);
+    const self = clients.get(ws);
+    broadcast({ type: 'player-join', id, x: self.x, y: self.y, z: self.z, yaw: self.yaw }, ws);
 
     ws.on('message', (raw) => {
       let msg;

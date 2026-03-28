@@ -1758,8 +1758,9 @@ network.connect({
 
     animate();
   },
-  onPlayerJoin(id) {
+  onPlayerJoin(id, x, y, z, yaw) {
     playerManager.add(id);
+    playerManager.updatePosition(id, x, y, z, yaw);
   },
   onPlayerLeave(id) {
     playerManager.remove(id);
