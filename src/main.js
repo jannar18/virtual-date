@@ -380,6 +380,8 @@ function createGrassBlade() {
   return base;
 }
 
+const cameraPosUniform = new THREE.Vector3();
+
 let grassMesh = null, grassMat = null;
 let patchGrassMesh = null, patchGrassMat = null;
 let terrainMat = null;
@@ -416,6 +418,7 @@ function createGrass() {
     vertexShader: grassVert, fragmentShader: grassFrag,
     uniforms: {
       uTime: { value: 0 }, uWindStrength: { value: params.windStrength },
+      uCameraPos: { value: cameraPosUniform },
       uHeightScale: { value: params.grassHeight },
       uBaseColor: { value: new THREE.Color(params.grassBaseColor) },
       uTipColor: { value: new THREE.Color(params.grassTipColor) },
@@ -508,6 +511,7 @@ function createPatchGrass() {
     vertexShader: grassVert, fragmentShader: grassFrag,
     uniforms: {
       uTime: { value: 0 }, uWindStrength: { value: params.windStrength },
+      uCameraPos: { value: cameraPosUniform },
       uHeightScale: { value: params.patchHeight },
       uBaseColor: { value: new THREE.Color(params.patchBaseColor) },
       uTipColor: { value: new THREE.Color(params.patchTipColor) },
@@ -686,6 +690,7 @@ function makeStemGroup(offsets, stemHeights, phases, stemThicknesses, stemCurves
     vertexShader: stemVert, fragmentShader: stemFrag,
     uniforms: {
       uTime: { value: 0 }, uWindStrength: { value: params.windStrength },
+      uCameraPos: { value: cameraPosUniform },
       uStemBase: { value: baseColor },
       uStemTip: { value: tipColor },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
@@ -721,6 +726,7 @@ function makeFlowerGroup(baseGeo, headOffsets, scales, phases, rotYs, petalColor
     vertexShader: flowerVert, fragmentShader: flowerFrag,
     uniforms: {
       uTime: { value: 0 }, uWindStrength: { value: params.windStrength },
+      uCameraPos: { value: cameraPosUniform },
       uCenterColor: { value: centerCol },
       uFogNear: { value: FOG_NEAR }, uFogFar: { value: FOG_FAR },
       uFogColor: { value: FOG_COLOR },
@@ -1169,18 +1175,27 @@ document.addEventListener('keydown', (e) => {
 });
 document.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
+const velocity = new THREE.Vector3();
+const MOVE_SPEED = 8;
+const DAMPING = 8; // higher = snappier, lower = floatier
+
 function updateMovement(dt) {
   if (!controls.isLocked) return;
-  const speed = 8 * dt;
-  const dir = new THREE.Vector3();
-  if (keys['KeyW']) dir.z -= 1;
-  if (keys['KeyS']) dir.z += 1;
-  if (keys['KeyA']) dir.x -= 1;
-  if (keys['KeyD']) dir.x += 1;
-  if (dir.lengthSq() > 0) {
-    dir.normalize();
-    controls.moveRight(dir.x * speed);
-    controls.moveForward(-dir.z * speed);
+  const target = new THREE.Vector3();
+  if (keys['KeyW']) target.z -= 1;
+  if (keys['KeyS']) target.z += 1;
+  if (keys['KeyA']) target.x -= 1;
+  if (keys['KeyD']) target.x += 1;
+  if (target.lengthSq() > 0) target.normalize();
+  target.multiplyScalar(MOVE_SPEED);
+
+  // Smooth acceleration / deceleration
+  const t = 1 - Math.exp(-DAMPING * dt);
+  velocity.lerp(target, t);
+
+  if (velocity.lengthSq() > 0.0001) {
+    controls.moveRight(velocity.x * dt);
+    controls.moveForward(-velocity.z * dt);
   }
   const p = camera.position;
   p.y = getHeightAt(p.x, p.z) + 1.7;
@@ -1626,6 +1641,8 @@ function animate() {
   timer.update();
   const dt = timer.getDelta();
   const t = timer.getElapsed();
+
+  cameraPosUniform.copy(camera.position);
 
   if (grassMat) grassMat.uniforms.uTime.value = t;
   if (patchGrassMat) patchGrassMat.uniforms.uTime.value = t;
