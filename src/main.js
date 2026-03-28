@@ -18,97 +18,17 @@ import ghibliFrag from './shaders/ghibli.frag.glsl';
 import { resetToSeed, seededRandom } from './lib/prng.js';
 import * as network from './lib/network.js';
 import { PlayerManager } from './lib/players.js';
+import { FIELD_SIZE, getHeightAt } from './lib/terrain.js';
+import { PRESET_KEYS, PRESETS } from './lib/presets.js';
+import { buildFlowerHead, buildFlowerGeometry, buildBellFlowerGeometry, buildClusterBudGeometry } from './lib/flowers.js';
+import { isPatchCell, PATCH_CELL_SIZE } from './lib/placement.js';
+import { createGrassBladeVertices, GRASS_BLADE_INDICES, createPatchBladeVertices, PATCH_BLADE_INDICES } from './lib/grass.js';
 
 // ─── Config ──────────────────────────────────────────────
-const FIELD_SIZE = 120;
 const FOG_COLOR = new THREE.Color(0x87ceeb);
 const FOG_NEAR = 30;
 const FOG_FAR = 90;
 const SUN_DIR = new THREE.Vector3(30, 40, 20).normalize();
-
-// ─── Presets ─────────────────────────────────────────────
-// Keys that get saved/loaded in a preset (everything except 'preset' itself)
-const PRESET_KEYS = [
-  'petalCount','petalLength','petalWidth','centerSize',
-  'singleStems','singleStemSpread','singleStemThickness','singleStemCurve',
-  'singlePetalTilt','singleBellWidth','singleBellFlare',
-  'bundleStems','bundleFlowersPerStem','bundleStemSpread',
-  'bundleStemThickness','bundleStemCurve','bundleStemHeightMult',
-  'bundlePetalCount','bundlePetalLength','bundlePetalWidth',
-  'bundleBellWidth','bundleBellFlare','bundlePetalTilt','bundleCenterSize',
-  'scaleMin','scaleMax','flowerCount','singlePct','bundlePct','clusterPct',
-  'stemHeightMin','stemHeightMax',
-  'primaryColor','secondaryColor','centerColor',
-  'bundleColor','bundleCenterColor',
-  'singleStemBaseColor','singleStemTipColor',
-  'bundleStemBaseColor','bundleStemTipColor',
-  'clusterStems','clusterBudsPerStem','clusterBudSpread',
-  'clusterStemThickness','clusterStemCurve','clusterStemHeightMult',
-  'clusterPetalCount','clusterPetalLength','clusterPetalWidth',
-  'clusterBellWidth','clusterBellFlare','clusterPetalTilt','clusterCenterSize',
-  'clusterColor','clusterCenterColor',
-  'clusterStemBaseColor','clusterStemTipColor',
-  'grassCount',
-  'grassBaseColor','grassTipColor','grassHeight',
-  'patchBaseColor','patchTipColor','patchHeight','groundColor',
-  'windStrength',
-  'celBands','celSoftness','ambientStrength',
-];
-
-const PRESETS = {
-  'Desert Spring': {
-    petalCount: 4, petalLength: 0.6, petalWidth: 1.0, centerSize: 0.1,
-    singleStems: 1, singleStemSpread: 0.02, singleStemThickness: 0.65, singleStemCurve: 0.0,
-    singlePetalTilt: 0.25, singleBellWidth: 0.05, singleBellFlare: 0.0,
-    bundleStems: 6, bundleFlowersPerStem: 4, bundleStemSpread: 0.2,
-    bundleStemThickness: 0.5, bundleStemCurve: 0.35, bundleStemHeightMult: 2.0,
-    bundlePetalCount: 4, bundlePetalLength: 0.1, bundlePetalWidth: 1.1,
-    bundleBellWidth: 0.2, bundleBellFlare: 0.05, bundlePetalTilt: 1.0, bundleCenterSize: 0.02,
-    scaleMin: 0.1, scaleMax: 0.5, stemHeightMin: 0.1, stemHeightMax: 0.6,
-    flowerCount: 10000, singlePct: 55, bundlePct: 45, clusterPct: 0, windStrength: 0.83,
-    primaryColor: '#ffebfc', secondaryColor: '#ffda8a', centerColor: '#fff3a0',
-    bundleColor: '#ffaf94', bundleCenterColor: '#ffe4a0',
-    singleStemBaseColor: '#99bf80', singleStemTipColor: '#99bf80',
-    bundleStemBaseColor: '#a6c7ae', bundleStemTipColor: '#a6c7ae',
-    clusterColor: '#b49adb', clusterCenterColor: '#9a84c0',
-    clusterStemBaseColor: '#99bf80', clusterStemTipColor: '#99bf80',
-    grassCount: 80000,
-    grassBaseColor: '#d8d97d', grassTipColor: '#f7ffb8', grassHeight: 0.7,
-    patchBaseColor: '#9ed963', patchTipColor: '#e6e882', patchHeight: 0.7,
-    groundColor: '#feffbd',
-  },
-  "Howl's Secret Garden": {
-    petalCount: 5, petalLength: 0.15, petalWidth: 0.7, centerSize: 0.04,
-    singleStems: 4, singleStemSpread: 0.06, singleStemThickness: 0.25, singleStemCurve: 0.0,
-    singlePetalTilt: 0.0, singleBellWidth: 0.08, singleBellFlare: 0.0,
-    bundleStems: 4, bundleFlowersPerStem: 4, bundleStemSpread: 0.12,
-    bundleStemThickness: 0.3, bundleStemCurve: 0.2, bundleStemHeightMult: 1.8,
-    bundlePetalCount: 1, bundlePetalLength: 0.12, bundlePetalWidth: 1.2,
-    bundleBellWidth: 0.14, bundleBellFlare: 0.02, bundlePetalTilt: 0.85, bundleCenterSize: 0.03,
-    clusterStems: 1, clusterBudsPerStem: 6, clusterBudSpread: 0.04,
-    clusterStemThickness: 0.4, clusterStemCurve: 0.1, clusterStemHeightMult: 1.4,
-    clusterPetalCount: 5, clusterPetalLength: 0.08, clusterPetalWidth: 0.55,
-    clusterBellWidth: 0.06, clusterBellFlare: 0.01, clusterPetalTilt: 0.92, clusterCenterSize: 0.02,
-    scaleMin: 0.1, scaleMax: 0.75, stemHeightMin: 0.2, stemHeightMax: 0.75,
-    flowerCount: 210000, singlePct: 90, bundlePct: 8, clusterPct: 20, windStrength: 0.19,
-    primaryColor: '#ffffff', secondaryColor: '#ffe5f0', centerColor: '#ffee70',
-    bundleColor: '#ffc7d6', bundleCenterColor: '#f58fa8',
-    clusterColor: '#b49adb', clusterCenterColor: '#9a84c0',
-    singleStemBaseColor: '#5a9a48', singleStemTipColor: '#5a9a48',
-    bundleStemBaseColor: '#9fc119', bundleStemTipColor: '#6a9a55',
-    clusterStemBaseColor: '#71c261', clusterStemTipColor: '#71c261',
-    grassCount: 600000,
-    grassBaseColor: '#41a45a', grassTipColor: '#add978', grassHeight: 0.2,
-    patchBaseColor: '#1d8724', patchTipColor: '#56a13a', patchHeight: 0.55,
-    groundColor: '#d9ff42',
-  },
-  Daisy:       { petalCount: 8,  petalLength: 0.5,  petalWidth: 0.55, centerSize: 0.12, singlePetalTilt: 0.0,  singleBellWidth: 0.25, singleBellFlare: 0.0 },
-  Poppy:       { petalCount: 4,  petalLength: 0.55, petalWidth: 0.85, centerSize: 0.08, singlePetalTilt: 0.15, singleBellWidth: 0.28, singleBellFlare: 0.04 },
-  Cosmos:      { petalCount: 8,  petalLength: 0.6,  petalWidth: 0.5,  centerSize: 0.10, singlePetalTilt: 0.0,  singleBellWidth: 0.25, singleBellFlare: 0.0 },
-  Buttercup:   { petalCount: 5,  petalLength: 0.35, petalWidth: 0.7,  centerSize: 0.15, singlePetalTilt: 0.1,  singleBellWidth: 0.20, singleBellFlare: 0.03 },
-  'Wild Rose': { petalCount: 5,  petalLength: 0.5,  petalWidth: 0.75, centerSize: 0.10, singlePetalTilt: 0.0,  singleBellWidth: 0.25, singleBellFlare: 0.0 },
-  Sunflower:   { petalCount: 10, petalLength: 0.55, petalWidth: 0.35, centerSize: 0.18, singlePetalTilt: 0.0,  singleBellWidth: 0.22, singleBellFlare: 0.0 },
-};
 
 // ─── Tweakable params ────────────────────────────────────
 const params = {
@@ -249,14 +169,6 @@ const ghibliPass = new ShaderPass(GhibliShader);
 composer.addPass(ghibliPass);
 
 // ─── Terrain ─────────────────────────────────────────────
-function getHeightAt(x, z) {
-  let h = 0;
-  h += Math.sin(x * 0.02) * Math.cos(z * 0.03) * 2.0;
-  h += Math.sin(x * 0.05 + 1.0) * Math.cos(z * 0.04 + 2.0) * 1.0;
-  h += Math.sin(x * 0.1 + 3.0) * Math.sin(z * 0.08 + 1.5) * 0.5;
-  return h;
-}
-
 function createGroundTexture() {
   const size = 512;
   const canvas = document.createElement('canvas');
@@ -369,14 +281,10 @@ function createTerrain() {
 
 // ─── Grass ───────────────────────────────────────────────
 function createGrassBlade() {
-  const verts = new Float32Array([
-    -0.02, 0, 0, 0.02, 0, 0,
-    -0.01, 0.5, 0, 0.01, 0.5, 0,
-    0.0, 1.0, 0,
-  ]);
+  const verts = new Float32Array(createGrassBladeVertices());
   const base = new THREE.BufferGeometry();
   base.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-  base.setIndex([0, 1, 2, 2, 1, 3, 2, 3, 4]);
+  base.setIndex(GRASS_BLADE_INDICES);
   return base;
 }
 
@@ -440,26 +348,12 @@ function createGrass() {
 }
 
 // ─── Patch Grass (weed clumps) ──────────────────────────
-const PATCH_CELL_SIZE = 4;
-
 function createPatchBlade() {
-  // Narrower, shorter blade for weeds
-  const verts = new Float32Array([
-    -0.035, 0, 0,  0.035, 0, 0,
-    -0.02, 0.35, 0,  0.02, 0.35, 0,
-    0.0, 0.6, 0,
-  ]);
+  const verts = new Float32Array(createPatchBladeVertices());
   const base = new THREE.BufferGeometry();
   base.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-  base.setIndex([0, 1, 2, 2, 1, 3, 2, 3, 4]);
+  base.setIndex(PATCH_BLADE_INDICES);
   return base;
-}
-
-function isPatchCell(cx, cz, seed) {
-  // Simple spatial hash — deterministically pick ~20% of cells as patch zones
-  let h = (cx * 73856093) ^ (cz * 19349663) ^ (seed * 83492791);
-  h = ((h >>> 0) % 100);
-  return h < 20;
 }
 
 function createPatchGrass() {
@@ -539,126 +433,45 @@ function rebuildAllGrass() {
 }
 
 // ─── Shared flower geometry builder ──────────────────────
-// Both single and bundle flowers use this. Pass shape params directly.
-function buildFlowerHead({ petalCount, petalLength, petalWidth, bellWidth, bellFlare, petalTilt, centerSize }) {
-  const verts = [];
-  const dists = [];
-  const indices = [];
-  let vi = 0;
-
-  const halfW = (Math.PI / petalCount) * petalWidth;
-  const t = petalTilt; // 0 = flat outward, 1 = full upward bell
-
-  // Bell targets
-  const bellH = petalLength * 1.8;
-  const bellMidR = bellWidth * 0.6;
-  const bellTopR = bellWidth * (0.7 + bellFlare * 2.0);
-
-  // Flat targets
-  const flatMidR = petalLength * 0.55;
-  const flatTopR = petalLength * 0.75;
-
-  // Interpolate
-  const baseY = 0.06 * (1 - t);
-  const midH = t * bellH * 0.55;
-  const midR = flatMidR + (bellMidR - flatMidR) * t;
-  const topH = t * bellH;
-  const topR = flatTopR + (bellTopR - flatTopR) * t;
-  const discTopY = 0.1 * (1 - t) + 0.03 * t;
-  const discRingY = 0.05 * (1 - t) + 0.01 * t;
-
-  for (let i = 0; i < petalCount; i++) {
-    const angle = (i / petalCount) * Math.PI * 2;
-
-    // v0: Base center
-    verts.push(0, baseY, 0);
-    dists.push(0);
-    // v1: Mid left
-    verts.push(Math.cos(angle - halfW) * midR, midH, Math.sin(angle - halfW) * midR);
-    dists.push(0.45);
-    // v2: Mid center (slightly further out for roundness)
-    verts.push(Math.cos(angle) * midR * 1.15, midH * 1.05, Math.sin(angle) * midR * 1.15);
-    dists.push(0.5);
-    // v3: Mid right
-    verts.push(Math.cos(angle + halfW) * midR, midH, Math.sin(angle + halfW) * midR);
-    dists.push(0.45);
-    // v4: Top left (rim)
-    verts.push(Math.cos(angle - halfW * 0.85) * topR, topH, Math.sin(angle - halfW * 0.85) * topR);
-    dists.push(1.0);
-    // v5: Top center (rim)
-    verts.push(Math.cos(angle) * topR * 1.05, topH * 0.98, Math.sin(angle) * topR * 1.05);
-    dists.push(1.0);
-    // v6: Top right (rim)
-    verts.push(Math.cos(angle + halfW * 0.85) * topR, topH, Math.sin(angle + halfW * 0.85) * topR);
-    dists.push(1.0);
-
-    const b = vi;
-    indices.push(b, b + 1, b + 2);
-    indices.push(b, b + 2, b + 3);
-    indices.push(b + 1, b + 4, b + 5);
-    indices.push(b + 1, b + 5, b + 2);
-    indices.push(b + 2, b + 5, b + 6);
-    indices.push(b + 2, b + 6, b + 3);
-    vi += 7;
-  }
-
-  // Center disc
-  verts.push(0, discTopY, 0);
-  dists.push(0);
-  const cBase = vi;
-  vi++;
-  for (let i = 0; i < petalCount; i++) {
-    const a = (i / petalCount) * Math.PI * 2;
-    verts.push(Math.cos(a) * centerSize, discRingY, Math.sin(a) * centerSize);
-    dists.push(0.1);
-    vi++;
-  }
-  for (let i = 0; i < petalCount; i++) {
-    indices.push(cBase, cBase + 1 + i, cBase + 1 + ((i + 1) % petalCount));
-  }
-
+// Wraps pure buildFlowerHead from lib into THREE.BufferGeometry
+function buildFlowerHeadGeo(shapeParams) {
+  const { vertices, petalDists, indices } = buildFlowerHead(shapeParams);
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-  geo.setAttribute('petalDist', new THREE.Float32BufferAttribute(dists, 1));
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geo.setAttribute('petalDist', new THREE.Float32BufferAttribute(petalDists, 1));
   geo.setIndex(indices);
   geo.computeVertexNormals();
   return geo;
 }
 
-function buildFlowerGeometry(p) {
-  return buildFlowerHead({
-    petalCount: p.petalCount,
-    petalLength: p.petalLength,
-    petalWidth: p.petalWidth,
-    bellWidth: p.singleBellWidth,
-    bellFlare: p.singleBellFlare,
-    petalTilt: p.singlePetalTilt,
-    centerSize: p.centerSize,
-  });
+function buildFlowerGeo(p) {
+  const { vertices, petalDists, indices } = buildFlowerGeometry(p);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geo.setAttribute('petalDist', new THREE.Float32BufferAttribute(petalDists, 1));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
 }
 
-function buildBellFlowerGeometry(p) {
-  return buildFlowerHead({
-    petalCount: p.bundlePetalCount,
-    petalLength: p.bundlePetalLength,
-    petalWidth: p.bundlePetalWidth,
-    bellWidth: p.bundleBellWidth,
-    bellFlare: p.bundleBellFlare,
-    petalTilt: p.bundlePetalTilt,
-    centerSize: p.bundleCenterSize,
-  });
+function buildBellFlowerGeo(p) {
+  const { vertices, petalDists, indices } = buildBellFlowerGeometry(p);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geo.setAttribute('petalDist', new THREE.Float32BufferAttribute(petalDists, 1));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
 }
 
-function buildClusterBudGeometry(p) {
-  return buildFlowerHead({
-    petalCount: p.clusterPetalCount,
-    petalLength: p.clusterPetalLength,
-    petalWidth: p.clusterPetalWidth,
-    bellWidth: p.clusterBellWidth,
-    bellFlare: p.clusterBellFlare,
-    petalTilt: p.clusterPetalTilt,
-    centerSize: p.clusterCenterSize,
-  });
+function buildClusterBudGeo(p) {
+  const { vertices, petalDists, indices } = buildClusterBudGeometry(p);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geo.setAttribute('petalDist', new THREE.Float32BufferAttribute(petalDists, 1));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
 }
 
 // ─── Flower + stem instance management ───────────────────
@@ -885,7 +698,7 @@ function rebuildFlowers() {
       }
     }
 
-    const sGeo = buildFlowerGeometry(params);
+    const sGeo = buildFlowerGeo(params);
     const stem = makeStemGroup(
       sStOffsets.subarray(0, ssi * 3), sStHeights.subarray(0, ssi),
       sStPhases.subarray(0, ssi), sStThick.subarray(0, ssi), sStCurve.subarray(0, ssi),
@@ -980,7 +793,7 @@ function rebuildFlowers() {
       }
     }
 
-    const bGeo = buildBellFlowerGeometry(params);
+    const bGeo = buildBellFlowerGeo(params);
     const stem = makeStemGroup(
       bStOffsets.subarray(0, bsi * 3), bStHeights.subarray(0, bsi),
       bStPhases.subarray(0, bsi), bStThick.subarray(0, bsi), bStCurve.subarray(0, bsi),
@@ -1078,7 +891,7 @@ function rebuildFlowers() {
       }
     }
 
-    const cGeo = buildClusterBudGeometry(params);
+    const cGeo = buildClusterBudGeo(params);
     const stem = makeStemGroup(
       cStOffsets.subarray(0, csi * 3), cStHeights.subarray(0, csi),
       cStPhases.subarray(0, csi), cStThick.subarray(0, csi), cStCurve.subarray(0, csi),

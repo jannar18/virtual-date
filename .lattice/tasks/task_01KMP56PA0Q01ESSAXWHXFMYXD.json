@@ -1,0 +1,37 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": null,
+  "created_at": "2026-03-26T22:45:53Z",
+  "created_by": "agent:claude-cli",
+  "custom_fields": {},
+  "description": "Wispy dark text floats above each player head, persisting until they send a new message. Press T to open chat, Enter to send, Escape to cancel. Own messages show as on-screen toast.",
+  "done_at": "2026-03-26T22:46:24Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01KMP57MN83EC5SKK8KSP1BQCS",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "art_01KMP57MN83EC5SKK8KSP1BQCR",
+      "role": "review",
+      "source_type": "artifact"
+    }
+  ],
+  "id": "task_01KMP56PA0Q01ESSAXWHXFMYXD",
+  "last_event_id": "ev_01KMP57MNB7CYRX1MGSKZG1GFY",
+  "last_status_changed_at": "2026-03-26T22:46:24Z",
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "WGL-1",
+  "status": "done",
+  "tags": null,
+  "title": "Add ephemeral chat bubbles above player avatars",
+  "type": "task",
+  "updated_at": "2026-03-26T22:46:24Z",
+  "urgency": null
+}
