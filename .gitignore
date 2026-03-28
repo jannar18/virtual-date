@@ -2,3 +2,5 @@ node_modules/
 dist/
 public/cottage.glb
 presets.json
+public/wanderer1.glb
+public/wanderer2.glb

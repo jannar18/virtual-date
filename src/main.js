@@ -221,7 +221,7 @@ scene.fog = new THREE.Fog(FOG_COLOR, FOG_NEAR, FOG_FAR);
 const camera = new THREE.PerspectiveCamera(
   65, window.innerWidth / window.innerHeight, 0.1, 200
 );
-camera.position.set(0, 3, 0);
+camera.position.set(-8, 3, 8); // spawn outside the cottage
 
 // ─── Post-Processing ────────────────────────────────────
 const composer = new EffectComposer(renderer);
@@ -1475,7 +1475,7 @@ function setupGUI() {
 }
 
 // ─── Player manager ──────────────────────────────────────
-const playerManager = new PlayerManager(scene);
+const playerManager = new PlayerManager(scene, camera);
 
 // ─── Network: apply remote param changes ─────────────────
 function applyRemoteParams(remoteParams) {
@@ -1513,7 +1513,7 @@ function loadCottage() {
     const model = gltf.scene;
     const cx = 3, cz = -3;
     const cy = getHeightAt(cx, cz);
-    model.position.set(cx, cy + 4.75, cz);
+    model.position.set(cx, cy + 5.25, cz);
     model.scale.setScalar(8.0);
 
     // Brighten and saturate GLB materials to match the scene style
