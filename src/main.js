@@ -1313,52 +1313,54 @@ const DAMPING = 8; // higher = snappier, lower = floatier
 
 function updateMovement(dt) {
   const isActive = isMobile ? mobileActive : controls.isLocked;
-  if (!isActive) return;
 
-  // On mobile, update camera rotation from touch look
-  if (isMobile) {
-    camera.rotation.order = 'YXZ';
-    camera.rotation.y = mobileYaw.value;
-    camera.rotation.x = mobilePitch.value;
-  }
-
-  const target = new THREE.Vector3();
-
-  if (isMobile) {
-    // Joystick: x = left/right, z = up/down (forward/back)
-    target.x = mobileMove.x;
-    target.z = mobileMove.z;
-  } else {
-    if (keys['KeyW']) target.z -= 1;
-    if (keys['KeyS']) target.z += 1;
-    if (keys['KeyA']) target.x -= 1;
-    if (keys['KeyD']) target.x += 1;
-  }
-
-  if (target.lengthSq() > 0) target.normalize();
-  target.multiplyScalar(MOVE_SPEED);
-
-  // Smooth acceleration / deceleration
-  const t = 1 - Math.exp(-DAMPING * dt);
-  velocity.lerp(target, t);
-
-  if (velocity.lengthSq() > 0.0001) {
+  if (isActive) {
+    // On mobile, update camera rotation from touch look
     if (isMobile) {
-      // Move relative to camera yaw (forward = -Z in Three.js)
-      const yaw = camera.rotation.y;
-      const sin = Math.sin(yaw);
-      const cos = Math.cos(yaw);
-      camera.position.x += (cos * velocity.x + sin * velocity.z) * dt;
-      camera.position.z += (-sin * velocity.x + cos * velocity.z) * dt;
-    } else {
-      controls.moveRight(velocity.x * dt);
-      controls.moveForward(-velocity.z * dt);
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = mobileYaw.value;
+      camera.rotation.x = mobilePitch.value;
     }
-  }
-  const p = camera.position;
-  p.y = getHeightAt(p.x, p.z) + 1.7;
 
-  network.sendPosition(p.x, p.y, p.z, camera.rotation.y);
+    const target = new THREE.Vector3();
+
+    if (isMobile) {
+      // Joystick: x = left/right, z = up/down (forward/back)
+      target.x = mobileMove.x;
+      target.z = mobileMove.z;
+    } else {
+      if (keys['KeyW']) target.z -= 1;
+      if (keys['KeyS']) target.z += 1;
+      if (keys['KeyA']) target.x -= 1;
+      if (keys['KeyD']) target.x += 1;
+    }
+
+    if (target.lengthSq() > 0) target.normalize();
+    target.multiplyScalar(MOVE_SPEED);
+
+    // Smooth acceleration / deceleration
+    const t = 1 - Math.exp(-DAMPING * dt);
+    velocity.lerp(target, t);
+
+    if (velocity.lengthSq() > 0.0001) {
+      if (isMobile) {
+        // Move relative to camera yaw (forward = -Z in Three.js)
+        const yaw = camera.rotation.y;
+        const sin = Math.sin(yaw);
+        const cos = Math.cos(yaw);
+        camera.position.x += (cos * velocity.x + sin * velocity.z) * dt;
+        camera.position.z += (-sin * velocity.x + cos * velocity.z) * dt;
+      } else {
+        controls.moveRight(velocity.x * dt);
+        controls.moveForward(-velocity.z * dt);
+      }
+    }
+    const p = camera.position;
+    p.y = getHeightAt(p.x, p.z) + 1.7;
+  }
+
+  // Always send position so other players see us, even before entering
+  network.sendPosition(camera.position.x, camera.position.y, camera.position.z, camera.rotation.y);
 }
 
 window.addEventListener('resize', () => {
@@ -1710,8 +1712,13 @@ function loadCottage(onProgress) {
       scene.add(model);
       resolve();
     }, (progress) => {
-      if (progress.lengthComputable && onProgress) {
-        onProgress(progress.loaded / progress.total);
+      if (onProgress) {
+        if (progress.lengthComputable) {
+          onProgress(progress.loaded / progress.total);
+        } else {
+          // Fallback: estimate against known ~87MB file size
+          onProgress(Math.min(progress.loaded / 87_000_000, 0.99));
+        }
       }
     }, (err) => {
       console.warn('Cottage model failed to load:', err);
@@ -1723,11 +1730,12 @@ function loadCottage(onProgress) {
 // ─── Init ────────────────────────────────────────────────
 setupLighting();
 
-const loadingBar = document.getElementById('loading-bar');
+const loadBlocks = document.querySelectorAll('.load-block');
 const loadingScreen = document.getElementById('loading-screen');
 
 const cottageReady = loadCottage((pct) => {
-  loadingBar.style.width = `${Math.round(pct * 100)}%`;
+  const filled = Math.round(pct * loadBlocks.length);
+  loadBlocks.forEach((b, i) => b.classList.toggle('filled', i < filled));
 });
 
 let networkInitData = null;
@@ -1737,7 +1745,7 @@ const networkReady = new Promise((resolve) => {
 
 // Once both cottage and network are ready, start the scene
 Promise.all([cottageReady, networkReady]).then(() => {
-  loadingBar.style.width = '100%';
+  loadBlocks.forEach((b) => b.classList.add('filled'));
   setTimeout(() => {
     loadingScreen.classList.add('hidden');
     overlay.classList.remove('hidden');

@@ -47,7 +47,7 @@ export function createWSHandler(httpServer) {
 
   wss.on('connection', (ws) => {
     const id = nextId++;
-    clients.set(ws, { id, x: 0, y: 3, z: 0, yaw: 0 });
+    clients.set(ws, { id, x: -8, y: 3, z: 8, yaw: 0 });
 
     // Build players snapshot (everyone except self)
     const players = {};
