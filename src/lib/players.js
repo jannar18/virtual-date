@@ -3,9 +3,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // ─── Config ──────────────────────────────────────────────
 const AVATAR_SCALE = 1.5;
-const GLB_SCALE = 0.8;
-const GLB_Y_OFFSET = 1.0;
-const WANDERER_MODELS = ['/wanderer1.glb', '/wanderer2.glb'];
+const WIZARD_MODEL = '/wizard.glb';
+const WIZARD_SCALE = 1.8;
+const WIZARD_Y_OFFSET = 1.3;
 
 // ─── Color helpers ───────────────────────────────────────
 // Teal-green for new procedural avatar
@@ -316,14 +316,19 @@ function createProceduralAvatar(cloakColor) {
 }
 
 // ═════════════════════════════════════════════════════════
-// GLB AVATAR — Meshy wanderer models
+// WIZARD AVATAR — GLB model + sunglasses + halo
 // ═════════════════════════════════════════════════════════
 
-function createGlbAvatar(template) {
-  const avatar = new THREE.Group();
+function createWizardAvatar(template, id) {
+  const color = goldColorFromId(id);
+  const group = new THREE.Group();
+
+  // GLB model
   const model = template.clone();
-  model.scale.setScalar(GLB_SCALE);
-  model.position.y = GLB_Y_OFFSET;
+  model.scale.setScalar(WIZARD_SCALE);
+  model.position.y = WIZARD_Y_OFFSET;
+
+  // Brighten materials
   model.traverse((child) => {
     if (child.isMesh && child.material) {
       const mat = child.material;
@@ -335,8 +340,44 @@ function createGlbAvatar(template) {
       if (mat.emissive) mat.emissive.setScalar(0.25);
     }
   });
-  avatar.add(model);
-  return { avatar, sparkle: null, type: 'glb', model };
+  group.add(model);
+
+  // Sunglasses (positioned for wizard model head)
+  const glassesMat = new THREE.MeshStandardMaterial({
+    color: 0x050508, roughness: 0.1, metalness: 0.8, side: THREE.DoubleSide,
+  });
+  const lensGeo = new THREE.BufferGeometry();
+  const verts = new Float32Array([
+    0.0, -0.17, 0, -0.266, 0.17, 0, 0.266, 0.17, 0,
+  ]);
+  lensGeo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+  lensGeo.computeVertexNormals();
+  const leftLens = new THREE.Mesh(lensGeo, glassesMat);
+  leftLens.position.set(-0.266, 2.0, 0.85);
+  group.add(leftLens);
+  const rightLens = new THREE.Mesh(lensGeo.clone(), glassesMat);
+  rightLens.position.set(0.266, 2.0, 0.85);
+  group.add(rightLens);
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.80, 0.03, 0.03), glassesMat);
+  bar.position.set(0, 2.10, 0.85);
+  group.add(bar);
+
+  // Halo
+  const glowMat = new THREE.MeshStandardMaterial({
+    color, emissive: color, emissiveIntensity: 1.5,
+    transparent: true, opacity: 0.85, side: THREE.DoubleSide,
+  });
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.03, 8, 32), glowMat);
+  halo.rotation.x = Math.PI / 2;
+  halo.position.set(0, 3.15, 0.2);
+  group.add(halo);
+
+  // Glow light
+  const light = new THREE.PointLight(color, 1.0, 5);
+  light.position.y = 0.6;
+  group.add(light);
+
+  return { avatar: group, sparkle: null, type: 'wizard', model };
 }
 
 // ─── Chat bubble ─────────────────────────────────────────
@@ -374,40 +415,42 @@ function createChatBubbleOriginal(text) {
 
 // ─── PlayerManager ───────────────────────────────────────
 export class PlayerManager {
-  constructor(scene) {
+  constructor(scene, camera) {
     this.scene = scene;
+    this.camera = camera;
     this.players = new Map();
-    this.glbTemplates = [];
-    this._glbReady = false;
+    this.wizardTemplate = null;
+    this._modelsReady = false;
     this._pendingAdds = [];
-    this._loadGlbModels();
+    this._loadModels();
   }
 
-  _loadGlbModels() {
+  _loadModels() {
     const loader = new GLTFLoader();
-    let loaded = 0;
-    WANDERER_MODELS.forEach((url, i) => {
-      loader.load(url, (gltf) => {
-        this.glbTemplates[i] = gltf.scene;
-        loaded++;
-        if (loaded === WANDERER_MODELS.length) {
-          this._glbReady = true;
-          for (const { id } of this._pendingAdds) {
-            this._createPlayer(id);
-          }
-          this._pendingAdds = [];
-        }
-      }, undefined, (err) => {
-        console.warn(`Failed to load wanderer model ${url}:`, err);
-      });
+    loader.load(WIZARD_MODEL, (gltf) => {
+      this.wizardTemplate = gltf.scene;
+      this._modelsReady = true;
+      for (const { id } of this._pendingAdds) {
+        this._createPlayer(id);
+      }
+      this._pendingAdds = [];
+    }, undefined, (err) => {
+      console.warn(`Failed to load wizard model:`, err);
+      this._modelsReady = true; // allow fallback to original
+      for (const { id } of this._pendingAdds) {
+        this._createPlayer(id);
+      }
+      this._pendingAdds = [];
     });
   }
 
   _createPlayer(id) {
     if (this.players.has(id)) return;
 
-    // Always use the original avatar (sunglasses + halo)
-    const result = createOriginalAvatar(id);
+    // Use wizard GLB with sunglasses + halo if loaded, fallback to original
+    const result = this.wizardTemplate
+      ? createWizardAvatar(this.wizardTemplate, id)
+      : createOriginalAvatar(id);
 
     const group = new THREE.Group();
     group.add(result.avatar);
@@ -425,12 +468,13 @@ export class PlayerManager {
       targetPos: new THREE.Vector3(),
       targetYaw: 0,
       prevPos: new THREE.Vector3(),
+      needsFaceCamera: true,
     });
   }
 
   add(id) {
     if (this.players.has(id)) return;
-    if (this._glbReady) {
+    if (this._modelsReady) {
       this._createPlayer(id);
     } else {
       this._pendingAdds.push({ id });
@@ -472,6 +516,16 @@ export class PlayerManager {
     if (!p) return;
     p.targetPos.set(x, y - 1.7, z);
     p.targetYaw = yaw;
+
+    // On first position update, snap into place facing the local camera
+    if (p.needsFaceCamera) {
+      p.needsFaceCamera = false;
+      p.group.position.copy(p.targetPos);
+      const cam = this.camera.position;
+      p.group.rotation.y = Math.atan2(cam.x - x, cam.z - z);
+      p.targetYaw = p.group.rotation.y;
+      p.prevPos.copy(p.targetPos);
+    }
   }
 
   tick(dt) {
@@ -504,8 +558,8 @@ export class PlayerManager {
         const pulse = 0.12 + Math.sin(time * 3.5) * 0.04;
         p.sparkle.scale.set(pulse, pulse, 1);
         p.sparkle.material.opacity = 0.6 + Math.sin(time * 4.2) * 0.3;
-      } else {
-        p.model.position.y = GLB_Y_OFFSET + Math.sin(time * 1.8) * 0.02;
+      } else if (p.type === 'wizard') {
+        p.model.position.y = WIZARD_Y_OFFSET + Math.sin(time * 1.8) * 0.02;
       }
 
       p.prevPos.copy(p.group.position);
