@@ -1344,13 +1344,12 @@ function updateMovement(dt) {
 
   if (velocity.lengthSq() > 0.0001) {
     if (isMobile) {
-      // Manual movement relative to camera yaw
-      const sin = Math.sin(camera.rotation.y);
-      const cos = Math.cos(camera.rotation.y);
-      const moveX = velocity.x * cos - velocity.z * sin;
-      const moveZ = velocity.x * sin + velocity.z * cos;
-      camera.position.x -= moveX * dt;
-      camera.position.z -= moveZ * dt;
+      // Move relative to camera yaw (forward = -Z in Three.js)
+      const yaw = camera.rotation.y;
+      const sin = Math.sin(yaw);
+      const cos = Math.cos(yaw);
+      camera.position.x += (cos * velocity.x + sin * velocity.z) * dt;
+      camera.position.z += (-sin * velocity.x + cos * velocity.z) * dt;
     } else {
       controls.moveRight(velocity.x * dt);
       controls.moveForward(-velocity.z * dt);
@@ -1643,9 +1642,13 @@ function setupGUI() {
     network.sendParams(params);
   });
 
-  single.open();
-  bundle.open();
-  cluster.open();
+  if (isMobile) {
+    gui.close();
+  } else {
+    single.open();
+    bundle.open();
+    cluster.open();
+  }
 }
 
 // ─── Player manager ──────────────────────────────────────
