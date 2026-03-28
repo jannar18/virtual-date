@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './loader.js';
 
 // ─── Config ──────────────────────────────────────────────
 const AVATAR_SCALE = 1.5;
@@ -426,8 +426,7 @@ export class PlayerManager {
   }
 
   _loadModels() {
-    const loader = new GLTFLoader();
-    loader.load(WIZARD_MODEL, (gltf) => {
+    gltfLoader.load(WIZARD_MODEL, (gltf) => {
       this.wizardTemplate = gltf.scene;
       this._modelsReady = true;
       this._flushPendingAdds();

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './lib/loader.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
@@ -1501,8 +1501,7 @@ function applyRemoteParams(remoteParams) {
 // ─── GLB Model ──────────────────────────────────────────
 function loadCottage(onProgress) {
   return new Promise((resolve) => {
-    const loader = new GLTFLoader();
-    loader.load('/cottage.glb', (gltf) => {
+    gltfLoader.load('/cottage.glb', (gltf) => {
       const model = gltf.scene;
       const cx = 3, cz = -3;
       const cy = getHeightAt(cx, cz);
@@ -1530,7 +1529,7 @@ function loadCottage(onProgress) {
           onProgress(progress.loaded / progress.total);
         } else {
           // Fallback: estimate against known ~87MB file size
-          onProgress(Math.min(progress.loaded / 87_000_000, 0.99));
+          onProgress(Math.min(progress.loaded / 7_400_000, 0.99));
         }
       }
     }, (err) => {
