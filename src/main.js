@@ -1348,8 +1348,8 @@ function updateMovement(dt) {
       const yaw = camera.rotation.y;
       const sin = Math.sin(yaw);
       const cos = Math.cos(yaw);
-      camera.position.x += (cos * velocity.x + sin * velocity.z) * dt;
-      camera.position.z += (-sin * velocity.x + cos * velocity.z) * dt;
+      camera.position.x += (cos * velocity.x - sin * velocity.z) * dt;
+      camera.position.z += (-sin * velocity.x - cos * velocity.z) * dt;
     } else {
       controls.moveRight(velocity.x * dt);
       controls.moveForward(-velocity.z * dt);
