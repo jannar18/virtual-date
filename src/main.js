@@ -221,7 +221,7 @@ scene.fog = new THREE.Fog(FOG_COLOR, FOG_NEAR, FOG_FAR);
 const camera = new THREE.PerspectiveCamera(
   65, window.innerWidth / window.innerHeight, 0.1, 200
 );
-camera.position.set(0, 3, 0);
+camera.position.set(-8, 3, 8); // spawn outside the cottage
 
 // ─── Post-Processing ────────────────────────────────────
 const composer = new EffectComposer(renderer);
