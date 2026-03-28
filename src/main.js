@@ -112,35 +112,35 @@ const PRESETS = {
 
 // ─── Tweakable params ────────────────────────────────────
 const params = {
-  preset: 'Desert Spring',
+  preset: "Howl's Secret Garden",
 
   // Single wildflower shape
-  petalCount: 4,
-  petalLength: 0.6,
-  petalWidth: 1.0,
-  centerSize: 0.1,
-  singleStems: 1,
-  singleStemSpread: 0.02,
-  singleStemThickness: 0.65,
+  petalCount: 5,
+  petalLength: 0.15,
+  petalWidth: 0.7,
+  centerSize: 0.04,
+  singleStems: 4,
+  singleStemSpread: 0.06,
+  singleStemThickness: 0.25,
   singleStemCurve: 0.0,
-  singleBellWidth: 0.05,
+  singleBellWidth: 0.08,
   singleBellFlare: 0.0,
-  singlePetalTilt: 0.25,
+  singlePetalTilt: 0.0,
 
   // Bundled bell-flower shape
-  bundleStems: 6,
+  bundleStems: 4,
   bundleFlowersPerStem: 4,
-  bundleStemSpread: 0.2,
-  bundleStemThickness: 0.5,
-  bundleStemCurve: 0.35,
-  bundleStemHeightMult: 2.0,
-  bundlePetalCount: 4,
-  bundlePetalLength: 0.1,
-  bundlePetalWidth: 1.1,
-  bundleBellWidth: 0.2,
-  bundleBellFlare: 0.05,
-  bundlePetalTilt: 1.0,
-  bundleCenterSize: 0.02,
+  bundleStemSpread: 0.12,
+  bundleStemThickness: 0.3,
+  bundleStemCurve: 0.2,
+  bundleStemHeightMult: 1.8,
+  bundlePetalCount: 1,
+  bundlePetalLength: 0.12,
+  bundlePetalWidth: 1.2,
+  bundleBellWidth: 0.14,
+  bundleBellFlare: 0.02,
+  bundlePetalTilt: 0.85,
+  bundleCenterSize: 0.03,
 
   // Cluster flower shape
   clusterStems: 1,
@@ -159,47 +159,47 @@ const params = {
 
   // Scale & field
   scaleMin: 0.1,
-  scaleMax: 0.5,
-  flowerCount: 10000,
-  singlePct: 55,
-  bundlePct: 45,
-  clusterPct: 0,
-  stemHeightMin: 0.1,
-  stemHeightMax: 0.6,
+  scaleMax: 0.75,
+  flowerCount: 210000,
+  singlePct: 90,
+  bundlePct: 8,
+  clusterPct: 20,
+  stemHeightMin: 0.2,
+  stemHeightMax: 0.75,
 
   // Colors — singles
-  primaryColor: '#ffebfc',
-  secondaryColor: '#ffda8a',
-  centerColor: '#fff3a0',
+  primaryColor: '#ffffff',
+  secondaryColor: '#ffe5f0',
+  centerColor: '#ffee70',
 
   // Colors — bundles (coral)
-  bundleColor: '#ffaf94',
-  bundleCenterColor: '#ffe4a0',
+  bundleColor: '#ffc7d6',
+  bundleCenterColor: '#f58fa8',
 
   // Colors — clusters (lavender)
   clusterColor: '#b49adb',
   clusterCenterColor: '#9a84c0',
 
   // Stems
-  singleStemBaseColor: '#99bf80',
-  singleStemTipColor: '#99bf80',
-  bundleStemBaseColor: '#a6c7ae',
-  bundleStemTipColor: '#a6c7ae',
-  clusterStemBaseColor: '#99bf80',
-  clusterStemTipColor: '#99bf80',
+  singleStemBaseColor: '#5a9a48',
+  singleStemTipColor: '#5a9a48',
+  bundleStemBaseColor: '#9fc119',
+  bundleStemTipColor: '#6a9a55',
+  clusterStemBaseColor: '#71c261',
+  clusterStemTipColor: '#71c261',
 
   // Grass
-  grassCount: 80000,
-  grassBaseColor: '#d8d97d',
-  grassTipColor: '#f7ffb8',
-  grassHeight: 0.7,
-  patchBaseColor: '#9ed963',
-  patchTipColor: '#e6e882',
-  patchHeight: 0.7,
-  groundColor: '#feffbd',
+  grassCount: 600000,
+  grassBaseColor: '#41a45a',
+  grassTipColor: '#add978',
+  grassHeight: 0.2,
+  patchBaseColor: '#1d8724',
+  patchTipColor: '#56a13a',
+  patchHeight: 0.55,
+  groundColor: '#d9ff42',
 
   // Wind
-  windStrength: 0.83,
+  windStrength: 0.19,
 
   // Cel-shading
   celBands: 3.0,
