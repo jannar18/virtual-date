@@ -31,7 +31,7 @@ export function connect({ onInit, onPlayerJoin, onPlayerLeave, onPlayerMove, onP
         _onInit?.(msg);
         break;
       case 'player-join':
-        _onPlayerJoin?.(msg.id);
+        _onPlayerJoin?.(msg.id, msg.x, msg.y, msg.z, msg.yaw);
         break;
       case 'player-leave':
         _onPlayerLeave?.(msg.id);
