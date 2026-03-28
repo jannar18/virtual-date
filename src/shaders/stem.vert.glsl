@@ -2,6 +2,7 @@
 
 uniform float uTime;
 uniform float uWindStrength;
+uniform vec3 uCameraPos;
 
 attribute vec3 offset;
 attribute float stemHeight;
@@ -14,27 +15,46 @@ varying vec3 vWorldPos;
 varying vec3 vNormal;
 
 void main() {
+  // Distance LOD — XZ distance from instance to camera
+  vec2 toCam = offset.xz - uCameraPos.xz;
+  float dist = length(toCam);
+
+  // Beyond 85u — collapse to degenerate triangle (hidden by fog)
+  if (dist > 85.0) {
+    vHeight = 0.0;
+    vWorldPos = offset;
+    vNormal = vec3(0.0, 1.0, 0.0);
+    gl_Position = vec4(0.0);
+    return;
+  }
+
   vHeight = position.y;  // 0 at base, 1 at tip
 
   vec3 pos = position;
   pos.x *= stemThickness;  // stem width
   pos.y *= stemHeight;
 
-  // Static stem curve (arch outward using phase as direction)
+  // Static stem curve (arch outward using phase as direction) — always applied
   float curveH = vHeight * vHeight;
   pos.x += cos(phase) * stemCurve * curveH;
   pos.z += sin(phase) * stemCurve * curveH;
 
-  // Wind — must match flower shader exactly
-  float windTime = uTime * 0.8;
-  float swayX = snoise(vec2(offset.x * 0.04 + windTime * 0.2 + phase, offset.z * 0.04)) * uWindStrength * 0.4;
+  // Wind LOD: full 0-25, fade 25-50, off 50+
+  float windLOD = 1.0 - smoothstep(25.0, 50.0, dist);
 
-  float sway = vHeight * vHeight;
-  pos.x += swayX * sway;
-  pos.y += sin(uTime * 1.5 + phase * 6.28) * 0.03 * sway;
+  if (windLOD > 0.001) {
+    // Wind — must match flower shader exactly
+    float windTime = uTime * 0.8;
+    float swayX = snoise(vec2(offset.x * 0.04 + windTime * 0.2 + phase, offset.z * 0.04)) * uWindStrength * 0.4 * windLOD;
 
-  // Synthetic normal from wind/curve displacement
-  vNormal = normalize(vec3(-swayX * 0.3, 1.0, -sin(phase) * stemCurve * 0.3));
+    float sway = vHeight * vHeight;
+    pos.x += swayX * sway;
+
+    // Synthetic normal from wind/curve displacement
+    vNormal = normalize(vec3(-swayX * 0.3, 1.0, -sin(phase) * stemCurve * 0.3));
+  } else {
+    vNormal = normalize(vec3(0.0, 1.0, -sin(phase) * stemCurve * 0.3));
+  }
 
   pos += offset;
   vWorldPos = pos;
