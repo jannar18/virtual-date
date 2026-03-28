@@ -160,7 +160,7 @@ const params = {
   // Scale & field
   scaleMin: 0.1,
   scaleMax: 0.75,
-  flowerCount: 210000,
+  flowerCount: 180000,
   singlePct: 90,
   bundlePct: 8,
   clusterPct: 20,
@@ -189,7 +189,7 @@ const params = {
   clusterStemTipColor: '#71c261',
 
   // Grass
-  grassCount: 600000,
+  grassCount: 5000,
   grassBaseColor: '#41a45a',
   grassTipColor: '#add978',
   grassHeight: 0.2,
