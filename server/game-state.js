@@ -12,7 +12,7 @@ export function createGameState(seed) {
 
 export function addClient(state) {
   const clientId = state.nextId++;
-  state.clients.set(clientId, { x: 0, y: 3, z: 0, yaw: 0 });
+  state.clients.set(clientId, { x: -8, y: 3, z: 8, yaw: 0 });
 
   const players = {};
   for (const [id, info] of state.clients) {
@@ -30,7 +30,8 @@ export function addClient(state) {
     presets: state.userPresets,
   };
 
-  const broadcasts = [{ type: 'player-join', id: clientId }];
+  const info = state.clients.get(clientId);
+  const broadcasts = [{ type: 'player-join', id: clientId, x: info.x, y: info.y, z: info.z, yaw: info.yaw }];
 
   return { state, clientId, initMessage, broadcasts };
 }

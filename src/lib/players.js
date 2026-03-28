@@ -430,18 +430,22 @@ export class PlayerManager {
     loader.load(WIZARD_MODEL, (gltf) => {
       this.wizardTemplate = gltf.scene;
       this._modelsReady = true;
-      for (const { id } of this._pendingAdds) {
-        this._createPlayer(id);
-      }
-      this._pendingAdds = [];
+      this._flushPendingAdds();
     }, undefined, (err) => {
       console.warn(`Failed to load wizard model:`, err);
       this._modelsReady = true; // allow fallback to original
-      for (const { id } of this._pendingAdds) {
-        this._createPlayer(id);
-      }
-      this._pendingAdds = [];
+      this._flushPendingAdds();
     });
+  }
+
+  _flushPendingAdds() {
+    for (const pending of this._pendingAdds) {
+      this._createPlayer(pending.id);
+      if (pending.pos) {
+        this.updatePosition(pending.id, pending.pos.x, pending.pos.y, pending.pos.z, pending.pos.yaw);
+      }
+    }
+    this._pendingAdds = [];
   }
 
   _createPlayer(id) {
@@ -513,7 +517,12 @@ export class PlayerManager {
 
   updatePosition(id, x, y, z, yaw) {
     const p = this.players.get(id);
-    if (!p) return;
+    if (!p) {
+      // Buffer position for players still waiting on model load
+      const pending = this._pendingAdds.find(e => e.id === id);
+      if (pending) pending.pos = { x, y, z, yaw };
+      return;
+    }
     p.targetPos.set(x, y - 1.7, z);
     p.targetYaw = yaw;
 

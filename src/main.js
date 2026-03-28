@@ -119,7 +119,7 @@ const params = {
   groundColor: '#d9ff42',
 
   // Wind
-  windStrength: 0.19,
+  windStrength: 0.6,
 
   // Cel-shading
   celBands: 3.0,
@@ -926,12 +926,144 @@ function setupLighting() {
 // ─── Controls ────────────────────────────────────────────
 const controls = new PointerLockControls(camera, document.body);
 const overlay = document.getElementById('overlay');
+const isMobile = 'ontouchstart' in window && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+let mobileActive = false;
 
-overlay.addEventListener('click', () => controls.lock());
+overlay.textContent = isMobile ? 'Tap to enter the meadow' : 'Click to enter the meadow';
+if (isMobile) {
+  overlay.addEventListener('click', () => {
+    mobileActive = true;
+    overlay.classList.add('hidden');
+    document.body.classList.add('mobile-active');
+  });
+} else {
+  overlay.addEventListener('click', () => controls.lock());
+}
 controls.addEventListener('lock', () => overlay.classList.add('hidden'));
 controls.addEventListener('unlock', () => {
-  if (!chatOpen) overlay.classList.remove('hidden');
+  if (!chatOpen && !isMobile) overlay.classList.remove('hidden');
 });
+
+// ─── Mobile touch: camera look ───────────────────────────
+let mobileLookTouchId = null;
+let mobileLookLastX = 0;
+let mobileLookLastY = 0;
+const mobileYaw = { value: 0 };
+const mobilePitch = { value: 0 };
+const LOOK_SENSITIVITY = 0.004;
+
+if (isMobile) {
+  // Initialize yaw/pitch from camera
+  mobileYaw.value = camera.rotation.y;
+  mobilePitch.value = camera.rotation.x;
+
+  const canvas = document.querySelector('canvas') || document.body;
+
+  document.addEventListener('touchstart', (e) => {
+    if (!mobileActive) return;
+    for (const touch of e.changedTouches) {
+      // Ignore touches on UI elements
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (el && (el.id === 'mobile-joystick' || el.id === 'mobile-chat-btn' ||
+                 el.id === 'chat-input' || el.closest?.('#mobile-joystick'))) continue;
+      if (mobileLookTouchId === null) {
+        mobileLookTouchId = touch.identifier;
+        mobileLookLastX = touch.clientX;
+        mobileLookLastY = touch.clientY;
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!mobileActive) return;
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === mobileLookTouchId) {
+        const dx = touch.clientX - mobileLookLastX;
+        const dy = touch.clientY - mobileLookLastY;
+        mobileYaw.value -= dx * LOOK_SENSITIVITY;
+        mobilePitch.value -= dy * LOOK_SENSITIVITY;
+        mobilePitch.value = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, mobilePitch.value));
+        mobileLookLastX = touch.clientX;
+        mobileLookLastY = touch.clientY;
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === mobileLookTouchId) {
+        mobileLookTouchId = null;
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchcancel', (e) => {
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === mobileLookTouchId) {
+        mobileLookTouchId = null;
+      }
+    }
+  }, { passive: true });
+}
+
+// ─── Mobile touch: virtual joystick ──────────────────────
+const mobileMove = { x: 0, z: 0 };
+let joystickTouchId = null;
+
+if (isMobile) {
+  const joystick = document.getElementById('mobile-joystick');
+  const knob = document.getElementById('mobile-joystick-knob');
+  const JOYSTICK_MAX = 40; // max knob displacement in px
+
+  joystick.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const touch = e.changedTouches[0];
+    joystickTouchId = touch.identifier;
+  }, { passive: false });
+
+  joystick.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === joystickTouchId) {
+        const rect = joystick.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        let dx = touch.clientX - cx;
+        let dy = touch.clientY - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > JOYSTICK_MAX) {
+          dx = (dx / dist) * JOYSTICK_MAX;
+          dy = (dy / dist) * JOYSTICK_MAX;
+        }
+        knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        mobileMove.x = dx / JOYSTICK_MAX;
+        mobileMove.z = dy / JOYSTICK_MAX;
+      }
+    }
+  }, { passive: false });
+
+  const resetJoystick = (e) => {
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === joystickTouchId) {
+        joystickTouchId = null;
+        knob.style.transform = 'translate(-50%, -50%)';
+        mobileMove.x = 0;
+        mobileMove.z = 0;
+      }
+    }
+  };
+  joystick.addEventListener('touchend', resetJoystick);
+  joystick.addEventListener('touchcancel', resetJoystick);
+
+  // Mobile chat button
+  const chatBtn = document.getElementById('mobile-chat-btn');
+  chatBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openChat();
+  });
+}
 
 // ─── Chat UI ──────────────────────────────────────────────
 const chatInput = document.getElementById('chat-input');
@@ -952,7 +1084,7 @@ function closeChat() {
   chatInput.style.display = 'none';
   chatInput.value = '';
   chatInput.blur();
-  controls.lock();
+  if (!isMobile) controls.lock();
 }
 
 function submitChat() {
@@ -993,27 +1125,55 @@ const MOVE_SPEED = 8;
 const DAMPING = 8; // higher = snappier, lower = floatier
 
 function updateMovement(dt) {
-  if (!controls.isLocked) return;
-  const target = new THREE.Vector3();
-  if (keys['KeyW']) target.z -= 1;
-  if (keys['KeyS']) target.z += 1;
-  if (keys['KeyA']) target.x -= 1;
-  if (keys['KeyD']) target.x += 1;
-  if (target.lengthSq() > 0) target.normalize();
-  target.multiplyScalar(MOVE_SPEED);
+  const isActive = isMobile ? mobileActive : controls.isLocked;
 
-  // Smooth acceleration / deceleration
-  const t = 1 - Math.exp(-DAMPING * dt);
-  velocity.lerp(target, t);
+  if (isActive) {
+    // On mobile, update camera rotation from touch look
+    if (isMobile) {
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = mobileYaw.value;
+      camera.rotation.x = mobilePitch.value;
+    }
 
-  if (velocity.lengthSq() > 0.0001) {
-    controls.moveRight(velocity.x * dt);
-    controls.moveForward(-velocity.z * dt);
+    const target = new THREE.Vector3();
+
+    if (isMobile) {
+      // Joystick: x = left/right, z = up/down (forward/back)
+      target.x = mobileMove.x;
+      target.z = mobileMove.z;
+    } else {
+      if (keys['KeyW']) target.z -= 1;
+      if (keys['KeyS']) target.z += 1;
+      if (keys['KeyA']) target.x -= 1;
+      if (keys['KeyD']) target.x += 1;
+    }
+
+    if (target.lengthSq() > 0) target.normalize();
+    target.multiplyScalar(MOVE_SPEED);
+
+    // Smooth acceleration / deceleration
+    const t = 1 - Math.exp(-DAMPING * dt);
+    velocity.lerp(target, t);
+
+    if (velocity.lengthSq() > 0.0001) {
+      if (isMobile) {
+        // Move relative to camera yaw (forward = -Z in Three.js)
+        const yaw = camera.rotation.y;
+        const sin = Math.sin(yaw);
+        const cos = Math.cos(yaw);
+        camera.position.x += (cos * velocity.x + sin * velocity.z) * dt;
+        camera.position.z += (-sin * velocity.x + cos * velocity.z) * dt;
+      } else {
+        controls.moveRight(velocity.x * dt);
+        controls.moveForward(-velocity.z * dt);
+      }
+    }
+    const p = camera.position;
+    p.y = getHeightAt(p.x, p.z) + 1.7;
   }
-  const p = camera.position;
-  p.y = getHeightAt(p.x, p.z) + 1.7;
 
-  network.sendPosition(p.x, p.y, p.z, camera.rotation.y);
+  // Always send position so other players see us, even before entering
+  network.sendPosition(camera.position.x, camera.position.y, camera.position.z, camera.rotation.y);
 }
 
 window.addEventListener('resize', () => {
@@ -1297,9 +1457,13 @@ function setupGUI() {
     network.sendParams(params);
   });
 
-  single.open();
-  bundle.open();
-  cluster.open();
+  if (isMobile) {
+    gui.close();
+  } else {
+    single.open();
+    bundle.open();
+    cluster.open();
+  }
 }
 
 // ─── Player manager ──────────────────────────────────────
@@ -1335,37 +1499,71 @@ function applyRemoteParams(remoteParams) {
 }
 
 // ─── GLB Model ──────────────────────────────────────────
-function loadCottage() {
-  const loader = new GLTFLoader();
-  loader.load('/cottage.glb', (gltf) => {
-    const model = gltf.scene;
-    const cx = 3, cz = -3;
-    const cy = getHeightAt(cx, cz);
-    model.position.set(cx, cy + 5.25, cz);
-    model.scale.setScalar(8.0);
+function loadCottage(onProgress) {
+  return new Promise((resolve) => {
+    const loader = new GLTFLoader();
+    loader.load('/cottage.glb', (gltf) => {
+      const model = gltf.scene;
+      const cx = 3, cz = -3;
+      const cy = getHeightAt(cx, cz);
+      model.position.set(cx, cy + 5.25, cz);
+      model.scale.setScalar(8.0);
 
-    // Brighten and saturate GLB materials to match the scene style
-    model.traverse((child) => {
-      if (child.isMesh && child.material) {
-        const mat = child.material;
-        if (mat.color) {
-          const hsl = {};
-          mat.color.getHSL(hsl);
-          mat.color.setHSL(hsl.h, Math.min(hsl.s * 2.0, 1.0), Math.min(hsl.l * 2.0, 1.0));
+      // Brighten and saturate GLB materials to match the scene style
+      model.traverse((child) => {
+        if (child.isMesh && child.material) {
+          const mat = child.material;
+          if (mat.color) {
+            const hsl = {};
+            mat.color.getHSL(hsl);
+            mat.color.setHSL(hsl.h, Math.min(hsl.s * 2.0, 1.0), Math.min(hsl.l * 2.0, 1.0));
+          }
+          mat.emissive?.setScalar(0.3);
         }
-        mat.emissive?.setScalar(0.3);
-      }
-    });
+      });
 
-    scene.add(model);
-  }, undefined, (err) => {
-    console.warn('Cottage model failed to load:', err);
+      scene.add(model);
+      resolve();
+    }, (progress) => {
+      if (onProgress) {
+        if (progress.lengthComputable) {
+          onProgress(progress.loaded / progress.total);
+        } else {
+          // Fallback: estimate against known ~87MB file size
+          onProgress(Math.min(progress.loaded / 87_000_000, 0.99));
+        }
+      }
+    }, (err) => {
+      console.warn('Cottage model failed to load:', err);
+      resolve(); // continue even if cottage fails
+    });
   });
 }
 
 // ─── Init ────────────────────────────────────────────────
 setupLighting();
-loadCottage();
+
+const loadBlocks = document.querySelectorAll('.load-block');
+const loadingScreen = document.getElementById('loading-screen');
+
+const cottageReady = loadCottage((pct) => {
+  const filled = Math.round(pct * loadBlocks.length);
+  loadBlocks.forEach((b, i) => b.classList.toggle('filled', i < filled));
+});
+
+let networkInitData = null;
+const networkReady = new Promise((resolve) => {
+  networkInitData = { resolve };
+});
+
+// Once both cottage and network are ready, start the scene
+Promise.all([cottageReady, networkReady]).then(() => {
+  loadBlocks.forEach((b) => b.classList.add('filled'));
+  setTimeout(() => {
+    loadingScreen.classList.add('hidden');
+    overlay.classList.remove('hidden');
+  }, 300);
+});
 
 network.connect({
   onInit({ seed, params: serverParams, players, presets: serverPresets }) {
@@ -1408,9 +1606,11 @@ network.connect({
     }
 
     animate();
+    networkInitData.resolve();
   },
-  onPlayerJoin(id) {
+  onPlayerJoin(id, x, y, z, yaw) {
     playerManager.add(id);
+    playerManager.updatePosition(id, x, y, z, yaw);
   },
   onPlayerLeave(id) {
     playerManager.remove(id);

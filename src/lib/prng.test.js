@@ -81,9 +81,11 @@ describe('prng', () => {
 
     it('never returns exactly 1 in a large sample', () => {
       resetToSeed(314);
+      let foundOne = false;
       for (let i = 0; i < 10000; i++) {
-        expect(seededRandom()).not.toBe(1);
+        if (seededRandom() === 1) { foundOne = true; break; }
       }
+      expect(foundOne).toBe(false);
     });
 
     it('handles seed = 0 correctly and produces valid numbers', () => {

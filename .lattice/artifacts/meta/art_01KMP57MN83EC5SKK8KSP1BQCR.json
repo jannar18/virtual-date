@@ -1,0 +1,19 @@
+{
+  "created_at": "2026-03-26T22:46:24Z",
+  "created_by": "agent:claude-cli",
+  "custom_fields": {},
+  "id": "art_01KMP57MN83EC5SKK8KSP1BQCR",
+  "model": null,
+  "payload": {
+    "content_type": "text/markdown",
+    "file": "art_01KMP57MN83EC5SKK8KSP1BQCR.md",
+    "size_bytes": 470
+  },
+  "schema_version": 1,
+  "sensitive": false,
+  "summary": "Implemented ephemeral chat bubbles across 5 files. Server (ws-handler.js) broadcasts chat messages fire-and-forget. Network layer (network.js) added sendChat/getMyId/onChat. PlayerManager (players.js)",
+  "tags": [],
+  "title": "Review findings",
+  "token_usage": null,
+  "type": "note"
+}
