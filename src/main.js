@@ -1643,9 +1643,13 @@ function setupGUI() {
     network.sendParams(params);
   });
 
-  single.open();
-  bundle.open();
-  cluster.open();
+  if (isMobile) {
+    gui.close();
+  } else {
+    single.open();
+    bundle.open();
+    cluster.open();
+  }
 }
 
 // ─── Player manager ──────────────────────────────────────
