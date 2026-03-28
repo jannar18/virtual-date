@@ -1113,12 +1113,144 @@ function setupLighting() {
 // ─── Controls ────────────────────────────────────────────
 const controls = new PointerLockControls(camera, document.body);
 const overlay = document.getElementById('overlay');
+const isMobile = 'ontouchstart' in window && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+let mobileActive = false;
 
-overlay.addEventListener('click', () => controls.lock());
+if (isMobile) {
+  overlay.textContent = 'Tap to enter the meadow';
+  overlay.addEventListener('click', () => {
+    mobileActive = true;
+    overlay.classList.add('hidden');
+    document.body.classList.add('mobile-active');
+  });
+} else {
+  overlay.addEventListener('click', () => controls.lock());
+}
 controls.addEventListener('lock', () => overlay.classList.add('hidden'));
 controls.addEventListener('unlock', () => {
-  if (!chatOpen) overlay.classList.remove('hidden');
+  if (!chatOpen && !isMobile) overlay.classList.remove('hidden');
 });
+
+// ─── Mobile touch: camera look ───────────────────────────
+let mobileLookTouchId = null;
+let mobileLookLastX = 0;
+let mobileLookLastY = 0;
+const mobileYaw = { value: 0 };
+const mobilePitch = { value: 0 };
+const LOOK_SENSITIVITY = 0.004;
+
+if (isMobile) {
+  // Initialize yaw/pitch from camera
+  mobileYaw.value = camera.rotation.y;
+  mobilePitch.value = camera.rotation.x;
+
+  const canvas = document.querySelector('canvas') || document.body;
+
+  document.addEventListener('touchstart', (e) => {
+    if (!mobileActive) return;
+    for (const touch of e.changedTouches) {
+      // Ignore touches on UI elements
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (el && (el.id === 'mobile-joystick' || el.id === 'mobile-chat-btn' ||
+                 el.id === 'chat-input' || el.closest?.('#mobile-joystick'))) continue;
+      if (mobileLookTouchId === null) {
+        mobileLookTouchId = touch.identifier;
+        mobileLookLastX = touch.clientX;
+        mobileLookLastY = touch.clientY;
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!mobileActive) return;
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === mobileLookTouchId) {
+        const dx = touch.clientX - mobileLookLastX;
+        const dy = touch.clientY - mobileLookLastY;
+        mobileYaw.value -= dx * LOOK_SENSITIVITY;
+        mobilePitch.value -= dy * LOOK_SENSITIVITY;
+        mobilePitch.value = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, mobilePitch.value));
+        mobileLookLastX = touch.clientX;
+        mobileLookLastY = touch.clientY;
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === mobileLookTouchId) {
+        mobileLookTouchId = null;
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchcancel', (e) => {
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === mobileLookTouchId) {
+        mobileLookTouchId = null;
+      }
+    }
+  }, { passive: true });
+}
+
+// ─── Mobile touch: virtual joystick ──────────────────────
+const mobileMove = { x: 0, z: 0 };
+let joystickTouchId = null;
+
+if (isMobile) {
+  const joystick = document.getElementById('mobile-joystick');
+  const knob = document.getElementById('mobile-joystick-knob');
+  const JOYSTICK_MAX = 40; // max knob displacement in px
+
+  joystick.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const touch = e.changedTouches[0];
+    joystickTouchId = touch.identifier;
+  }, { passive: false });
+
+  joystick.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === joystickTouchId) {
+        const rect = joystick.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        let dx = touch.clientX - cx;
+        let dy = touch.clientY - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > JOYSTICK_MAX) {
+          dx = (dx / dist) * JOYSTICK_MAX;
+          dy = (dy / dist) * JOYSTICK_MAX;
+        }
+        knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        mobileMove.x = dx / JOYSTICK_MAX;
+        mobileMove.z = dy / JOYSTICK_MAX;
+      }
+    }
+  }, { passive: false });
+
+  const resetJoystick = (e) => {
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === joystickTouchId) {
+        joystickTouchId = null;
+        knob.style.transform = 'translate(-50%, -50%)';
+        mobileMove.x = 0;
+        mobileMove.z = 0;
+      }
+    }
+  };
+  joystick.addEventListener('touchend', resetJoystick);
+  joystick.addEventListener('touchcancel', resetJoystick);
+
+  // Mobile chat button
+  const chatBtn = document.getElementById('mobile-chat-btn');
+  chatBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openChat();
+  });
+}
 
 // ─── Chat UI ──────────────────────────────────────────────
 const chatInput = document.getElementById('chat-input');
@@ -1139,7 +1271,7 @@ function closeChat() {
   chatInput.style.display = 'none';
   chatInput.value = '';
   chatInput.blur();
-  controls.lock();
+  if (!isMobile) controls.lock();
 }
 
 function submitChat() {
@@ -1180,12 +1312,29 @@ const MOVE_SPEED = 8;
 const DAMPING = 8; // higher = snappier, lower = floatier
 
 function updateMovement(dt) {
-  if (!controls.isLocked) return;
+  const isActive = isMobile ? mobileActive : controls.isLocked;
+  if (!isActive) return;
+
+  // On mobile, update camera rotation from touch look
+  if (isMobile) {
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = mobileYaw.value;
+    camera.rotation.x = mobilePitch.value;
+  }
+
   const target = new THREE.Vector3();
-  if (keys['KeyW']) target.z -= 1;
-  if (keys['KeyS']) target.z += 1;
-  if (keys['KeyA']) target.x -= 1;
-  if (keys['KeyD']) target.x += 1;
+
+  if (isMobile) {
+    // Joystick: x = left/right, z = up/down (forward/back)
+    target.x = mobileMove.x;
+    target.z = mobileMove.z;
+  } else {
+    if (keys['KeyW']) target.z -= 1;
+    if (keys['KeyS']) target.z += 1;
+    if (keys['KeyA']) target.x -= 1;
+    if (keys['KeyD']) target.x += 1;
+  }
+
   if (target.lengthSq() > 0) target.normalize();
   target.multiplyScalar(MOVE_SPEED);
 
@@ -1194,8 +1343,18 @@ function updateMovement(dt) {
   velocity.lerp(target, t);
 
   if (velocity.lengthSq() > 0.0001) {
-    controls.moveRight(velocity.x * dt);
-    controls.moveForward(-velocity.z * dt);
+    if (isMobile) {
+      // Manual movement relative to camera yaw
+      const sin = Math.sin(camera.rotation.y);
+      const cos = Math.cos(camera.rotation.y);
+      const moveX = velocity.x * cos - velocity.z * sin;
+      const moveZ = velocity.x * sin + velocity.z * cos;
+      camera.position.x -= moveX * dt;
+      camera.position.z -= moveZ * dt;
+    } else {
+      controls.moveRight(velocity.x * dt);
+      controls.moveForward(-velocity.z * dt);
+    }
   }
   const p = camera.position;
   p.y = getHeightAt(p.x, p.z) + 1.7;
