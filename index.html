@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Flower Field</title>
   <style>
     * { margin: 0; padding: 0; }
@@ -63,10 +63,61 @@
       pointer-events: none;
     }
     #chat-toast.visible { opacity: 1; }
+
+    /* ── Mobile touch controls ── */
+    #mobile-joystick {
+      display: none;
+      position: fixed;
+      bottom: 40px;
+      left: 40px;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.12);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      z-index: 15;
+      touch-action: none;
+    }
+    #mobile-joystick-knob {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.35);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    #mobile-chat-btn {
+      display: none;
+      position: fixed;
+      bottom: 48px;
+      right: 40px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.45);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      font-size: 1.4rem;
+      z-index: 15;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      touch-action: none;
+      line-height: 52px;
+      text-align: center;
+    }
+    .mobile-active #mobile-joystick,
+    .mobile-active #mobile-chat-btn {
+      display: block;
+    }
   </style>
 </head>
 <body>
   <div id="overlay">Click to enter the meadow</div>
+  <div id="mobile-joystick"><div id="mobile-joystick-knob"></div></div>
+  <div id="mobile-chat-btn">💬</div>
   <input id="chat-input" type="text" maxlength="100" placeholder="Say something..." autocomplete="off" />
   <div id="chat-toast"></div>
   <script type="module" src="/src/main.js"></script>
