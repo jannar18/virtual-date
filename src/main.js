@@ -1278,6 +1278,15 @@ function setupGUI() {
       setCelUniformOnAll('uCelBands', params.celBands);
       setCelUniformOnAll('uCelSoftness', params.celSoftness);
       setCelUniformOnAll('uAmbientStrength', params.ambientStrength);
+      // Sync Ghibli post-processing uniforms from preset
+      const gu = ghibliPass.uniforms;
+      if (params.outlineStrength  !== undefined) gu.uOutlineStrength.value  = params.outlineStrength;
+      if (params.outlineThickness !== undefined) gu.uOutlineThickness.value = params.outlineThickness;
+      if (params.colorSteps       !== undefined) gu.uColorSteps.value       = params.colorSteps;
+      if (params.quantizeStrength  !== undefined) gu.uQuantizeStrength.value = params.quantizeStrength;
+      if (params.warmth           !== undefined) gu.uWarmth.value           = params.warmth;
+      if (params.saturation       !== undefined) gu.uSaturation.value       = params.saturation;
+      if (params.hazeStrength     !== undefined) gu.uHazeStrength.value     = params.hazeStrength;
       scheduleRebuild();
     }
   });
@@ -1437,13 +1446,27 @@ function setupGUI() {
   // ── Style (Ghibli post-processing + cel-shading) ──
   const style = gui.addFolder('Style');
   const gu = ghibliPass.uniforms;
-  style.add(gu.uOutlineStrength,  'value', 0, 1, 0.01).name('Outline Strength');
-  style.add(gu.uOutlineThickness, 'value', 0.5, 3, 0.1).name('Outline Thickness');
-  style.add(gu.uColorSteps,       'value', 4, 32, 1).name('Color Steps');
-  style.add(gu.uQuantizeStrength,  'value', 0, 0.5, 0.01).name('Quantize');
-  style.add(gu.uWarmth,           'value', 0, 1, 0.01).name('Warmth');
-  style.add(gu.uSaturation,       'value', 0.5, 1.5, 0.01).name('Saturation');
-  style.add(gu.uHazeStrength,     'value', 0, 0.5, 0.01).name('Haze');
+  style.add(params, 'outlineStrength', 0, 1, 0.01).name('Outline Strength').onChange(v => {
+    gu.uOutlineStrength.value = v; network.sendParams(params);
+  });
+  style.add(params, 'outlineThickness', 0.5, 3, 0.1).name('Outline Thickness').onChange(v => {
+    gu.uOutlineThickness.value = v; network.sendParams(params);
+  });
+  style.add(params, 'colorSteps', 4, 32, 1).name('Color Steps').onChange(v => {
+    gu.uColorSteps.value = v; network.sendParams(params);
+  });
+  style.add(params, 'quantizeStrength', 0, 0.5, 0.01).name('Quantize').onChange(v => {
+    gu.uQuantizeStrength.value = v; network.sendParams(params);
+  });
+  style.add(params, 'warmth', 0, 1, 0.01).name('Warmth').onChange(v => {
+    gu.uWarmth.value = v; network.sendParams(params);
+  });
+  style.add(params, 'saturation', 0.5, 1.5, 0.01).name('Saturation').onChange(v => {
+    gu.uSaturation.value = v; network.sendParams(params);
+  });
+  style.add(params, 'hazeStrength', 0, 0.5, 0.01).name('Haze').onChange(v => {
+    gu.uHazeStrength.value = v; network.sendParams(params);
+  });
   style.add(params, 'celBands', 2, 8, 1).name('Cel Bands').onChange(v => {
     setCelUniformOnAll('uCelBands', v);
     network.sendParams(params);
@@ -1495,6 +1518,15 @@ function applyRemoteParams(remoteParams) {
   setCelUniformOnAll('uCelBands', params.celBands);
   setCelUniformOnAll('uCelSoftness', params.celSoftness);
   setCelUniformOnAll('uAmbientStrength', params.ambientStrength);
+  // Sync Ghibli post-processing uniforms from remote params
+  const gu = ghibliPass.uniforms;
+  if (params.outlineStrength  !== undefined) gu.uOutlineStrength.value  = params.outlineStrength;
+  if (params.outlineThickness !== undefined) gu.uOutlineThickness.value = params.outlineThickness;
+  if (params.colorSteps       !== undefined) gu.uColorSteps.value       = params.colorSteps;
+  if (params.quantizeStrength  !== undefined) gu.uQuantizeStrength.value = params.quantizeStrength;
+  if (params.warmth           !== undefined) gu.uWarmth.value           = params.warmth;
+  if (params.saturation       !== undefined) gu.uSaturation.value       = params.saturation;
+  if (params.hazeStrength     !== undefined) gu.uHazeStrength.value     = params.hazeStrength;
   if (gui) gui.controllersRecursive().forEach((c) => c.updateDisplay());
 }
 

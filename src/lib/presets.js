@@ -25,6 +25,8 @@ export const PRESET_KEYS = [
   'patchBaseColor','patchTipColor','patchHeight','groundColor',
   'windStrength',
   'celBands','celSoftness','ambientStrength',
+  'outlineStrength','outlineThickness','colorSteps',
+  'quantizeStrength','warmth','saturation','hazeStrength',
 ];
 
 export const PRESETS = {
@@ -48,6 +50,8 @@ export const PRESETS = {
     grassBaseColor: '#d8d97d', grassTipColor: '#f7ffb8', grassHeight: 0.7,
     patchBaseColor: '#9ed963', patchTipColor: '#e6e882', patchHeight: 0.7,
     groundColor: '#feffbd',
+    outlineStrength: 0.4, outlineThickness: 1.0, colorSteps: 14,
+    quantizeStrength: 0.15, warmth: 0.15, saturation: 1.2, hazeStrength: 0.1,
   },
   "Howl's Secret Garden": {
     petalCount: 5, petalLength: 0.15, petalWidth: 0.7, centerSize: 0.04,
@@ -73,6 +77,8 @@ export const PRESETS = {
     grassBaseColor: '#41a45a', grassTipColor: '#add978', grassHeight: 0.2,
     patchBaseColor: '#1d8724', patchTipColor: '#56a13a', patchHeight: 0.55,
     groundColor: '#d9ff42',
+    outlineStrength: 0.4, outlineThickness: 1.0, colorSteps: 14,
+    quantizeStrength: 0.15, warmth: 0.15, saturation: 1.2, hazeStrength: 0.1,
   },
   Daisy:       { petalCount: 8,  petalLength: 0.5,  petalWidth: 0.55, centerSize: 0.12, singlePetalTilt: 0.0,  singleBellWidth: 0.25, singleBellFlare: 0.0 },
   Poppy:       { petalCount: 4,  petalLength: 0.55, petalWidth: 0.85, centerSize: 0.08, singlePetalTilt: 0.15, singleBellWidth: 0.28, singleBellFlare: 0.04 },
@@ -118,6 +124,8 @@ const DEFAULT_PARAMS = {
 
   windStrength: 0.19,
   celBands: 3.0, celSoftness: 0.08, ambientStrength: 0.65,
+  outlineStrength: 0.4, outlineThickness: 1.0, colorSteps: 14,
+  quantizeStrength: 0.15, warmth: 0.15, saturation: 1.2, hazeStrength: 0.1,
 };
 
 export function createDefaultParams() {
