@@ -311,7 +311,7 @@ function createProceduralAvatar(cloakColor) {
   avatar.add(sparkle);
 
   avatar.scale.setScalar(AVATAR_SCALE);
-  avatar.rotation.y = 0;
+  avatar.rotation.y = Math.PI;
   return { avatar, sparkle, type: 'procedural' };
 }
 
@@ -523,7 +523,7 @@ export class PlayerManager {
       return;
     }
     p.targetPos.set(x, y - 1.7, z);
-    p.targetYaw = yaw;
+    p.targetYaw = yaw + Math.PI;
 
     // On first position update, snap into place facing the local camera
     if (p.needsFaceCamera) {
