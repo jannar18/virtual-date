@@ -311,7 +311,7 @@ function createProceduralAvatar(cloakColor) {
   avatar.add(sparkle);
 
   avatar.scale.setScalar(AVATAR_SCALE);
-  avatar.rotation.y = Math.PI;
+  avatar.rotation.y = 0;
   return { avatar, sparkle, type: 'procedural' };
 }
 
